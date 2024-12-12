@@ -1,0 +1,29 @@
+Commandes de base :
+	git pull			(update votre dossier local avec les changements sur le github cloud)
+	git status			(savoir qu'est ce qui se passe)
+	git branch			(vérifier sur quelle branche vous êtes / quelles branches existent)
+	git checkout nomdelabranche     (aller sur la branche en question)
+	
+	
+Si vous avez créé/modifié les fichier exemple.txt et wesh.txt et que vous voulez le garder:
+	git add exemple.txt wesh.txt
+	git commit -m "salut j'ai changé des trucs"
+	git push
+	
+
+Si vous avez fait des modifications (pas encore commit) que vous voulez abandonner et revenir à la dernière version
+sauvegardée/commited d'une file,
+faites 
+	git restore nomdufile (attention tout ce qui a pas été sauvegardé sera perdu)
+
+NB : bcp de commandes git vont bugger si vous avez des changements pas sauvegardé par un commit
+ça donne un message genre "unsaved changes will be erased : please commit your changes before blabla"
+
+Dans ce cas vous avez deux options : faire add et commit (pas besoin de push)
+si vous voulez garder ces changements, et faire git stash si vous vous en foutez
+un peu des changements pour le moment.
+git stash sauve tous les changements pas add (tout ce qui est en rouge) dans un dossier caché 
+et les supprime de votre dossier actuel (du coup git voit que tout est bon).
+Vous pouvez ramener vos modifications stashed d'entre les morts sur votre dossier local 
+en faisant "git stash pop". 
+Dans le doute, faites plutôt add 
