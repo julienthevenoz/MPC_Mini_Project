@@ -114,7 +114,7 @@ classdef MpcControl_lon < MpcControlBase
                     break;
                 end
             
-                h4=plot(Xf, 'y'); 
+                % h4=plot(Xf, 'y'); 
 	            fprintf('Iteration %i... not yet equal\n', i)
 	            
             
@@ -123,7 +123,7 @@ classdef MpcControl_lon < MpcControlBase
             
             fprintf('Maximal invariant set computed after %i iterations\n\n', i);
             h5=plot(Xf,'g');
-            legend([h5;h4;h7],{'Invariant set';'State constraints';'Iterations'});
+            legend([h5;h7],{'Invariant set';'State constraints';'Iterations'});
            
             [Ff,ff] = double(Xf); % initiates Ff and ff vector with defining matrix and vector of Xf
 
