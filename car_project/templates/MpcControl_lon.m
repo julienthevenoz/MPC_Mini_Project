@@ -29,6 +29,8 @@ classdef MpcControl_lon < MpcControlBase
 
             % Initial states
             x0 = sdpvar(nx, 1);
+           
+     
             x0other = sdpvar(nx, 1); % (Ignore this before Todo 5.1)
 
             % Input to apply to the system
@@ -43,8 +45,100 @@ classdef MpcControl_lon < MpcControlBase
             %       in mpc.xs and mpc.us.
             
             % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
+            x= sdpvar(nx,N);
+            u = sdpvar(nu, N-1);
+
+
+            A = mpc.A;
+            B = mpc.B;
+            % Constraints on state
+            % x in X = { x | Fx <= f }
+
+            %{
+            F = [1 0 0; 
+                 0 1 0; 
+                -1 0 0; 
+                 0 -1 0]; 
+
+            f = [0.5; 0.0873; 3.5; 0.0873];
+            %}
+
+            %F = [0; 1];
+            %f=[0;0];
+
+
+            % Constraints on control input
+            % u in U = { u | Mu*u <= mu }
+            %{
+            M = [1 0;
+                0 1;
+                -1 0;
+                0 -1];
+            m = [1; 0.5236; 1; 0.5236];
+            %}
+            M =[1;-1];
+            m = [1;1];
+
+            %N=10;
+            %no idea where we get this info but
+            Q= 10*eye(2);
+            R=1;
+            
+            
+            %COMPUTE TERMINAL CONTROLLER
+            [K, Qf, ~]=dlqr(A,B,Q,R); %I guess 
+            K=-K;
+            % K:the optimal gain matrix
+            % Qt:the solution of the associated algebraic Riccati equation
+            disp(K);
+            
+            %COMPUTE SETS AND WEIGHTS WITH CODE FROM LAST WEEK
+            %P = polytope(H,h); %creates the polytope {x|Hx<=h}
+            %h6=plot(polytope(F,f), 'b'); %blue
+            %hold on;
+            
+            Xf=polytope([M*K],[m]); %Hs of exercise 3 are replaced by Fs
+            Acl=[A+B*K];
+            
+            h7=plot(Xf, 'c');
+            hold on;
+            i = 1;
+            
+            while 1
+                Xf_prev = Xf;
+                [P,p]=double(Xf); % initiates F matrix and f vector with defining matrix and vector of Xf
+                preXf = polytope(P*Acl,p);
+                
+                Xf=intersect(Xf, preXf);%new polytope which is the intersection with the preset
+                if Xf == Xf_prev
+                    break;
+                end
+            
+                h4=plot(Xf, 'y'); 
+	            fprintf('Iteration %i... not yet equal\n', i)
+	            
+            
+	            i = i + 1;
+            end
+            
+            fprintf('Maximal invariant set computed after %i iterations\n\n', i);
+            h5=plot(Xf,'g');
+            legend([h5;h4;h7],{'Invariant set';'State constraints';'Iterations'});
+           
+            [Ff,ff] = double(Xf); % initiates Ff and ff vector with defining matrix and vector of Xf
+
+
             obj = 0;
             con = [];
+
+            for i = 1:N-1
+                con = [con, x(:,i+1) == A*x(:,i) + B*u(:,i)];   % System dynamics
+                %con = [con, F*x(:,i) <= f];                     % State constraints
+                con = [con, M*u(:,i) <= m];                     % Input constraints
+                obj = obj + x(:,i)'*Q*x(:,i) + u(:,i)'*R*u(:,i); % Cost function
+            end
+            con = [con, Ff*x(:,N) <= ff]; % Terminal constraint
+            obj = obj + x(:,N)'*Qf*x(:,N);    % Terminal weight
 
             % Replace this line and set u0 to be the input that you
             % want applied to the system. Note that u0 is applied directly
@@ -58,7 +152,9 @@ classdef MpcControl_lon < MpcControlBase
             % then access them when calling your mpc controller like
             % [u, X, U] = mpc_lon.get_u(x0, ref);
             % with debugVars = {X_var, U_var};
-            debugVars = {};
+            X_var = x0-mpc.xs;
+            U_var = u0-mpc.us;
+            debugVars = {X_var, U_var};
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
