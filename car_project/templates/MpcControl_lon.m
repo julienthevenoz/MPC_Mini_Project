@@ -1,5 +1,5 @@
 classdef MpcControl_lon < MpcControlBase
-    
+
     methods
         % Design a YALMIP optimizer object that takes a steady-state state
         % and input (xs, us) and returns a control input
@@ -45,37 +45,15 @@ classdef MpcControl_lon < MpcControlBase
             %       in mpc.xs and mpc.us.
             
             % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
-            x= sdpvar(nx,N);
-            u = sdpvar(nu, N-1);
+            delta_x= sdpvar(nx,N);
+            delta_u = sdpvar(nu, N-1);
 
 
             A = mpc.A;
             B = mpc.B;
-            % Constraints on state
-            % x in X = { x | Fx <= f }
 
-            %{
-            F = [1 0 0; 
-                 0 1 0; 
-                -1 0 0; 
-                 0 -1 0]; 
-
-            f = [0.5; 0.0873; 3.5; 0.0873];
-            %}
-
-            %F = [0; 1];
-            %f=[0;0];
-
-
-            % Constraints on control input
-            % u in U = { u | Mu*u <= mu }
-            %{
-            M = [1 0;
-                0 1;
-                -1 0;
-                0 -1];
-            m = [1; 0.5236; 1; 0.5236];
-            %}
+            % Constraints on state : None
+            %Constraints on input
             M =[1;-1];
             m = [1;1];
 
@@ -92,18 +70,15 @@ classdef MpcControl_lon < MpcControlBase
             % Qt:the solution of the associated algebraic Riccati equation
             disp(K);
             
-            %COMPUTE SETS AND WEIGHTS WITH CODE FROM LAST WEEK
-            %P = polytope(H,h); %creates the polytope {x|Hx<=h}
-            %h6=plot(polytope(F,f), 'b'); %blue
-            %hold on;
-            
+       
             Xf=polytope([M*K],[m]); %Hs of exercise 3 are replaced by Fs
             Acl=[A+B*K];
             
             h7=plot(Xf, 'c');
             hold on;
             i = 1;
-            
+
+            %{
             while 1
                 Xf_prev = Xf;
                 [P,p]=double(Xf); % initiates F matrix and f vector with defining matrix and vector of Xf
@@ -120,25 +95,32 @@ classdef MpcControl_lon < MpcControlBase
             
 	            i = i + 1;
             end
-            
+           
             fprintf('Maximal invariant set computed after %i iterations\n\n', i);
             h5=plot(Xf,'g');
             legend([h5;h4;h7],{'Invariant set';'State constraints';'Iterations'});
            
             [Ff,ff] = double(Xf); % initiates Ff and ff vector with defining matrix and vector of Xf
-
+            %}
 
             obj = 0;
             con = [];
+            
+            xs = mpc.xs;
+            us = mpc.us;
+            con = [con, delta_x(:,1) == x0 - xs];
+            %con = [con, delta_u(:,1) == u0 - us];
+            %obj = delta_u(:,1)'*R*delta_u(:,1); % Cost function
+
 
             for i = 1:N-1
-                con = [con, x(:,i+1) == A*x(:,i) + B*u(:,i)];   % System dynamics
-                %con = [con, F*x(:,i) <= f];                     % State constraints
-                con = [con, M*u(:,i) <= m];                     % Input constraints
-                obj = obj + x(:,i)'*Q*x(:,i) + u(:,i)'*R*u(:,i); % Cost function
+                con = [con, delta_x(:,i+1) == A*delta_x(:,i) + B*delta_u(:,i)];   % System dynamics
+                %con = [con, F*x(:,i) <= f];                     % No State constraints :
+                con = [con, M*delta_u(:,i) <= m - M*us];                     % Input constraints
+                obj = obj + delta_x(:,i)'*Q*delta_x(:,i) + delta_u(:,i)'*R*delta_u(:,i); % Cost function
             end
-            con = [con, Ff*x(:,N) <= ff]; % Terminal constraint
-            obj = obj + x(:,N)'*Qf*x(:,N);    % Terminal weight
+            con = [con, M*delta_u(:,N-1) <= m - M*us]; % Terminal constraint
+            obj = obj + delta_x(:,N)'*Q*delta_x(:,N);    % Terminal weight
 
             % Replace this line and set u0 to be the input that you
             % want applied to the system. Note that u0 is applied directly
@@ -146,7 +128,9 @@ classdef MpcControl_lon < MpcControlBase
             % offsets resulting from the linearization.
             % If you want to use the delta formulation make sure to
             % substract mpc.xs/mpc.us accordingly.
-            con = con + ( u0 == 0 );
+            input = delta_u(:,1) + us;
+            con = con + ( u0 == input);
+            
 
             % Pass here YALMIP sdpvars which you want to debug. You can
             % then access them when calling your mpc controller like
@@ -156,6 +140,7 @@ classdef MpcControl_lon < MpcControlBase
             U_var = u0-mpc.us;
             debugVars = {X_var, U_var};
             
+            %[u_lon, X_lon, U_lon] = mpc_lon.get_u(x_lon, ref_lon);
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
@@ -177,8 +162,8 @@ classdef MpcControl_lon < MpcControlBase
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
             % Steady-state subsystem
-            A = mpc.A(2, 2);
-            B = mpc.B(2, 1);
+            A = mpc.A(2, 2); % déjà discrétisé dans MpcControlBase
+            B = mpc.B(2, 1); % déjà discrétisé dans MpcControlBase
 
             % Subsystem linearization steady-state
             xs = mpc.xs(2);
@@ -186,8 +171,11 @@ classdef MpcControl_lon < MpcControlBase
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
-            Vs_ref = 0;
-            us_ref = 0;
+            Vs_ref = ref;
+            %Vs_ref =A*(ref-xs); %correct
+            us_ref = (Vs_ref - xs-A*(Vs_ref-xs))/B +us;
+            %us_ref = B*us;
+           % us_ref =0;
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         end
