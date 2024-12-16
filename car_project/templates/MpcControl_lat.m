@@ -39,89 +39,68 @@ classdef MpcControl_lat < MpcControlBase
             
             % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
 
-            x= sdpvar(nx,N);
-            u = sdpvar(nu, N-1);
+            x= sdpvar(nx,N);  %x contains [y, theta]
+            u = sdpvar(nu, N-1);  % u contains [delta]
 
-            A = mpc.A;
-            B = mpc.B;
-            % Constraints on state
-            % x in X = { x | Fx <= f }
+            Ad = mpc.A;
+            Bd = mpc.B;
 
-            
-            F = [1 0 ; 
-                 0 1 ; 
-                -1 0 ; 
-                 0 -1 ]; 
-
-            f = [3.5; 0.0873; 0.5; 0.0873];
+            xs = mpc.xs;
+            us = mpc.us;
            
+            % Constraints on stat
+            % x in X = { x | Fx <= f } and we know that -0.5 <= y <= 3.5 and |theta| <= 0.0873 rad
+            F = [1 0; 
+                 0 -1;
+                 1 0;
+                 0 -1];
+            f = [3.5; 0.5; 0.0873; 0.0873];
 
-            % Constraints on control input
-            % u in U = { u | Mu*u <= mu }
-            
-            M = [1 ; -1];
+            %constratins on input u in U = {u | Mu <= u} and we know |delta| <= 0.5236 rad
+            M = [1 0;
+                 0 -1];
             m = [0.5236; 0.5236];
-           
-            %N=10;
-            %no idea where we get this info but
-            Q= 10*eye(2);
-            R=1;
-            
-            
-            %COMPUTE TERMINAL CONTROLLER
-            [K, Qf, ~]=dlqr(A,B,Q,R); %I guess 
-            K=-K;
-            % K:the optimal gain matrix
-            % Qt:the solution of the associated algebraic Riccati equation
-            disp(K);
-            
-            %COMPUTE SETS AND WEIGHTS WITH CODE FROM LAST WEEK
-            %P = polytope(H,h); %creates the polytope {x|Hx<=h}
-            h6=plot(polytope(F,f), 'b'); %blue
-            hold on;
-            
-            Xf=polytope([F;M*K],[f;m]); %Hs of exercise 3 are replaced by Fs
-            Acl=[A+B*K];
-            
-            h7=plot(Xf, 'c');
-            hold on;
-            i = 1;
-            
+
+            %stage cost is l(x,u) = Q*xT*x + R*uT*u
+            Q = 10*eye(2);
+            R = 1;
+
+            %get terminal/steady controller and cost 
+            [K, Qf, ~] = dlqr(Ad,Bd,Q,R);
+
+            %let's calculate max invariant set
+            % Compute maximal invariant set
+            Xf = polytope([F;M*K],[f;m]);
+            Acl = [Ad+Bd*K];
+            i = 0;
             while 1
-                Xf_prev = Xf;
-                [P,p]=double(Xf); % initiates F matrix and f vector with defining matrix and vector of Xf
-                preXf = polytope(P*Acl,p);
-                
-                Xf=intersect(Xf, preXf);%new polytope which is the intersection with the preset
-                if Xf == Xf_prev
-                    break;
+                i = i + 1;
+                prevXf = Xf;
+                [T,t] = double(Xf);
+                preXf = polytope(T*Acl,t);
+                Xf = intersect(Xf, preXf);
+                if isequal(prevXf, Xf)
+                    break
                 end
-            
-                h4=plot(Xf, 'y'); 
-	            fprintf('Iteration %i... not yet equal\n', i)
-	            
-            
-	            i = i + 1;
             end
-            
-            fprintf('Maximal invariant set computed after %i iterations\n\n', i);
-            h5=plot(Xf,'g');
-            legend([h5;h6;h4;h7],{'Invariant set';'State constraints';'Iterations';'h7'});
-            
-            [Ff,ff] = double(Xf); % initiates Ff and ff vector with defining matrix and vector of Xf
+            [Ff,ff] = double(Xf);
+            fprintf("Terminal / Max invariant set calculated after %i iters", i)
 
 
+
+            %system constraints and objective variable
+            con = (x(:,1) == x0) + (u(:,1) == u0); %setup initial constraints on state and input x0 u0
             obj = 0;
-            con = [];
-
-            for i = 1:N-1
-                con = [con, x(:,i+1) == A*x(:,i) + B*u(:,i)];   % System dynamics
-                con = [con, F*x(:,i) <= f];                     % State constraints
-                con = [con, M*u(:,i) <= m];                     % Input constraints
-                obj = obj + x(:,i)'*Q*x(:,i) + u(:,i)'*R*u(:,i); % Cost function
+            
+            for i=1:N-1
+                x = x(:,i); u = u(:,i);  %define current u and x for convenience
+                con = con +  (x(:,i+1) == xs + Ad*(x - xs) + Bd*(u - us));  %system dynamics
+                con = con + (F*x <= f) + (M*u <= m); %constraints on acceptable states and inputs
+                obj = obj + (x-xs)'*Q*(x-xs) + (u-us)'*R*(u-us);     %cost function summing
             end
-            con = [con, Ff*x(:,N) <= ff]; % Terminal constraint
-            obj = obj + x(:,N)'*Qf*x(:,N);    % Terminal weight
+            con = con + (Ff*x(:,N) <= ff) + (M*u(:,N) <= m);
+            obj = obj + (x(:,N) -xs)'*Qf*(x(:,N) - xs); %last term of cost function : terminal cost Vf(X_N -xs)
+
 
             % Replace this line and set u0 to be the input that you
             % want applied to the system. Note that u0 is applied directly
@@ -129,13 +108,16 @@ classdef MpcControl_lat < MpcControlBase
             % offsets resulting from the linearization.
             % If you want to use the delta formulation make sure to
             % substract mpc.xs/mpc.us accordingly.
-            con = con + ( u0 == 0 );
+            input = u(:,1);
+            con = con + ( u0 == input );
 
             % Pass here YALMIP sdpvars which you want to debug. You can
             % then access them when calling your mpc controller like
             % [u, X, U] = mpc_lat.get_u(x0, ref);
             % with debugVars = {X_var, U_var};
-            debugVars = {};
+            debug_x = x;
+            debug_u = u;
+            debugVars = {debug_x, debug_u};
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

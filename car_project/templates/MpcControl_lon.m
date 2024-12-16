@@ -45,82 +45,47 @@ classdef MpcControl_lon < MpcControlBase
             %       in mpc.xs and mpc.us.
             
             % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
-            delta_x= sdpvar(nx,N);
-            delta_u = sdpvar(nu, N-1);
+            x= sdpvar(nx,N);
+            u = sdpvar(nu, N-1);
 
 
-            A = mpc.A;
-            B = mpc.B;
+            Ad = mpc.A;
+            Bd = mpc.B;
 
             % Constraints on state : None
-            %Constraints on input
+            %Constraints on input : -1 <= u <= 1
             M =[1;-1];
             m = [1;1];
 
-            %N=10;
-            %no idea where we get this info but
             Q= 10*eye(2);
             R=1;
             
             
             %COMPUTE TERMINAL CONTROLLER
-            [K, Qf, ~]=dlqr(A,B,Q,R); %I guess 
+            [K, Qf, ~]=dlqr(Ad,Bd,Q,R); %I guess 
             K=-K;
             % K:the optimal gain matrix
             % Qt:the solution of the associated algebraic Riccati equation
-            disp(K);
+            % disp(K);
             
-       
-            Xf=polytope([M*K],[m]); %Hs of exercise 3 are replaced by Fs
-            Acl=[A+B*K];
-            
-            % h7=plot(Xf, 'c');
-            % hold on;
-            i = 1;
-
-            %{
-            while 1
-                Xf_prev = Xf;
-                [P,p]=double(Xf); % initiates F matrix and f vector with defining matrix and vector of Xf
-                preXf = polytope(P*Acl,p);
-                
-                Xf=intersect(Xf, preXf);%new polytope which is the intersection with the preset
-                if Xf == Xf_prev
-                    break;
-                end
-            
-                % h4=plot(Xf, 'y'); 
-	            fprintf('Iteration %i... not yet equal\n', i)
-	            
-            
-	            i = i + 1;
-            end
-           
-            fprintf('Maximal invariant set computed after %i iterations\n\n', i);
-            h5=plot(Xf,'g');
-            legend([h5;h7],{'Invariant set';'State constraints';'Iterations'});
-           
-            [Ff,ff] = double(Xf); % initiates Ff and ff vector with defining matrix and vector of Xf
-            %}
-
             obj = 0;
             con = [];
             
             xs = mpc.xs;
             us = mpc.us;
-            con = [con, delta_x(:,1) == x0 - xs];
-            %con = [con, delta_u(:,1) == u0 - us];
-            %obj = delta_u(:,1)'*R*delta_u(:,1); % Cost function
+            con = [con, x(:,1) == x0];  %initial contraints on u0 and x0
+            con = [con, u(:,1) == u0];
+            obj = u(:,1)'*R*u(:,1); % Cost function
 
 
             for i = 1:N-1
-                con = [con, delta_x(:,i+1) == A*delta_x(:,i) + B*delta_u(:,i)];   % System dynamics
+                con = [con, x(:,i+1) == xs + Ad*(x(:,i)-xs) + Bd*(u(:,i)-us)];   % System dynamics
                 %con = [con, F*x(:,i) <= f];                     % No State constraints :
-                con = [con, M*delta_u(:,i) <= m - M*us];                     % Input constraints
-                obj = obj + delta_x(:,i)'*Q*delta_x(:,i) + delta_u(:,i)'*R*delta_u(:,i); % Cost function
+                con = [con, M*u(:,i) <= m];                     % Input constraints
+                obj = obj + (x(:,i)-xs)'*Q*(x(:,i)-xs) + (u(:,i)-us)'*R*(u(:,i)-us); % Cost function
             end
-            con = [con, M*delta_u(:,N-1) <= m - M*us]; % Terminal constraint
-            obj = obj + delta_x(:,N)'*Q*delta_x(:,N);    % Terminal weight
+            con = [con, M*u(:,N-1) <= m]; % Terminal constraint
+            obj = obj + (x(:,N)-xs)'*Qf*(x(:,N)-xs);    % Terminal weight     %I changed Q to Qf ??? does it makes sense ?
 
             % Replace this line and set u0 to be the input that you
             % want applied to the system. Note that u0 is applied directly
@@ -128,7 +93,7 @@ classdef MpcControl_lon < MpcControlBase
             % offsets resulting from the linearization.
             % If you want to use the delta formulation make sure to
             % substract mpc.xs/mpc.us accordingly.
-            input = delta_u(:,1) + us;
+            input = u(:,1);
             con = con + ( u0 == input);
             
 
@@ -136,11 +101,10 @@ classdef MpcControl_lon < MpcControlBase
             % then access them when calling your mpc controller like
             % [u, X, U] = mpc_lon.get_u(x0, ref);
             % with debugVars = {X_var, U_var};
-            X_var = x0-mpc.xs;
-            U_var = u0-mpc.us;
+            X_var = x; %x0-mpc.xs;
+            U_var = u; %u0-mpc.us;
             debugVars = {X_var, U_var};
             
-            %[u_lon, X_lon, U_lon] = mpc_lon.get_u(x_lon, ref_lon);
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
@@ -166,14 +130,15 @@ classdef MpcControl_lon < MpcControlBase
             B = mpc.B(2, 1); % déjà discrétisé dans MpcControlBase
 
             % Subsystem linearization steady-state
-            xs = mpc.xs(2);
-            us = mpc.us;
+            xs = mpc.xs(2);  %this is speed V
+            us = mpc.us;     %this is throttle 
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
-            Vs_ref = ref;
-            %Vs_ref =A*(ref-xs); %correct
+            % Vs_ref = ref;
+            Vs_ref =ref; %A*(ref-xs); %correct
             us_ref = (Vs_ref - xs-A*(Vs_ref-xs))/B +us;
+            %save the variables to plot the
             %us_ref = B*us;
            % us_ref =0;
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
