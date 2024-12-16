@@ -5,6 +5,9 @@ sys = car.linearize(xs, us);
 [sys_lon, sys_lat] = car.decompose(sys);
 % Design MPC controller
 H_lon = 10; % Horizon length in seconds
+mpc_lon = MpcControl_lon(sys_lon, Ts, H_lon);
+mpc_lat = MpcControl_lat(sys_lat, Ts, H_lon);
+
 % Get control input for longitudinal subsystem
 
 %u_lon = mpc_lon.get_u(x_lon, ref_lon);%DEBUG : see what happens if we give state 80km/h and ref 120km/h
