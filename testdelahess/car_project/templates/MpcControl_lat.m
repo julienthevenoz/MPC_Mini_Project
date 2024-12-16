@@ -60,6 +60,26 @@ classdef MpcControl_lat < MpcControlBase
             R=1;
             [K, Qf, ~]=dlqr(A,B,Q,R);
             K=-K;
+            
+
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            % Polytope
+            % Compute maximal invariant set
+            Xf = polytope([F;M*K],[f;m]);
+            Acl = [mpc.A+mpc.B*K];
+            while 1
+                prevXf = Xf;
+                [T,t] = double(Xf);
+                preXf = polytope(T*Acl,t);
+                Xf = intersect(Xf, preXf);
+                if isequal(prevXf, Xf)
+                    break
+                end
+            end
+
+            [Ff,ff] = double(Xf);
+            %%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
             x = sdpvar(2,N,'full');
             u = sdpvar(1,N-1,'full');
@@ -69,29 +89,34 @@ classdef MpcControl_lat < MpcControlBase
              %%%%%%%%%%%%%%%%%%%%%%%%%%%
              % DELTA FORMULATION
             %{
-            con = [con, x(:,1) == x0];
+            con = [con, x(:,1) == x0 -xs ];
             for i = 1:N-1
-                delta_x = x(:,i+1) - xs;
-                con = [con, (x(:,i+1)-xs) == A*(x(:,i)-xs) + B*(u(:,i)-us)];   % System dynamics
-                con = [con, F*(x(:,i)-xs) <= f - F*xs];                     % State constraints
-                con = [con, M*(u(:,i)-us) <= m - M*us];                     % Input constraints
-                obj = obj + (x(:,i)-xs)'*Qf*(x(:,i)-xs) + (u(:,i)-us)'*R*(u(:,i)-us); % Cost function
+                delta_x = x(:,i) - xs;
+                delta_u = u(:,i) - us;
+                con = [con, (x(:,i+1)-xs) == A*delta_x + B*delta_u];   % System dynamics
+                con = [con, F*delta_x <= f - F*xs];                    % State constraints
+                con = [con, M*delta_u <= m - M*us];                     % Input constraints
+                obj = obj + (delta_x)'*Qf*(delta_x) + (delta_u)'*R*(delta_u); % Cost function
             end
-            con = [con, F*(x(:,i)-xs) <= f- F*xs ];
+            con = [con, F*(x(:,N)-xs) <= f- F*xs ];
             obj = obj + (x(:,N) - xs)'*Qf*(x(:,N) - xs);
             %}
             %%%%%%%%%%%%%%%%%%%%%%%%%%
             %NON DELTA FORMULATION
             
             con = [con, x(:,1) == x0];
-            for i = 1:N-1
-                con = [con, x(:,i+1) == A*x(:,i) + B*u(:,i)];   % System dynamics
+            u(:,1) = u0;
+            con = [con, x(:,2) == A*x(:,1)+B*u(:,1)];
+            con = [con, M*u(:,1) <= m];
+            obj = obj + (u(:,1)-us)'*R*(u(:,1)-us); % Cost function
+            for i = 2:N-1
+                con = [con, x(:,i+1) == xs + A*x(:,i) + B*u(:,i)];   % System dynamics
                 con = [con, F*x(:,i) <= f ];                     % State constraints
                 con = [con, M*u(:,i) <= m ];                     % Input constraints
-                obj = obj + (x(:,i)-xs)'*Qf*(x(:,i)-xs) + (u(:,i)-us)'*R*(u(:,i)-us); % Cost function
+                obj = obj + (x(:,i)-xs)'*Q*(x(:,i)-xs) + (u(:,i)-us)'*R*(u(:,i)-us); % Cost function
             end
             
-            con = [con, F*x(:,N) <= f ];
+            con = [con, Ff*x(:,N) <= ff ];
             obj = obj + (x(:,N) - xs)'*Qf*(x(:,N) - xs);
             
             % Replace this line and set u0 to be the input that you
@@ -100,10 +125,17 @@ classdef MpcControl_lat < MpcControlBase
             % offsets resulting from the linearization.
             % If you want to use the delta formulation make sure to
             % substract mpc.xs/mpc.us accordingly.
-            %input = 0.5;
+             %%%%%%%%%%%%%%%%%%%%%%%%%%%
+             % DELTA FORMULATION
+           % input = u(:,1) + us;
+           % con = con + ( u0 == input );
+
+             %%%%%%%%%%%%%%%%%%%%%%%%%%
+            %NON DELTA FORMULATION
+            
             input = u(:,1);
             con = con + ( u0 == input );
-
+            
             % Pass here YALMIP sdpvars which you want to debug. You can
             % then access them when calling your mpc controller like
             % [u, X, U] = mpc_lat.get_u(x0, ref);
@@ -144,15 +176,29 @@ classdef MpcControl_lat < MpcControlBase
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %xs_ref = [0; 0];
             
-            if ~(ref==0)
-                fprintf('not zero');
+            
+            
+             %%%%%%%%%%%%%%%%%%%%%%%%%%%
+             % DELTA FORMULATION
+             xs_ref = [ref;0];
+             %us_ref_1 = (xs_ref - A*(xs_ref-xs));
+             %us_ref = us_ref_1(1)/B(1)+us;
+             us_ref = ((1-A(1,1))*(xs_ref(1)-xs(1))-A(1,2)*(xs_ref(2)-xs(2)))/B(1) + us;
+             %fprintf('?');
+             if ~(ref==0)
+                %fprintf('ref is not zero');
             end
-
-
+            if ~(us_ref==0)
+                %fprintf('not zero');
+            end
+             %%%%%%%%%%%%%%%%%%%%%%%%%%
+            %NON DELTA FORMULATION
+            %{
             xs_ref = [ref;0];
             %us_ref_1 = (xs_ref - xs - A*(xs_ref-xs));
             %us_ref = us_ref_1(1)/B(1)+us;
             us_ref = ((1-A(1,1))*(xs_ref(1)-xs(1))-A(1,2)*(xs_ref(2)-xs(2)))/B(1) + us;
+            %}
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         end
