@@ -74,8 +74,8 @@ classdef MpcControl_lon < MpcControlBase
             Xf=polytope([M*K],[m]); %Hs of exercise 3 are replaced by Fs
             Acl=[A+B*K];
             
-            h7=plot(Xf, 'c');
-            hold on;
+            % h7=plot(Xf, 'c');
+            % hold on;
             i = 1;
 
             %{
