@@ -4,30 +4,33 @@ car = Car(Ts);
 sys = car.linearize(xs, us);
 [sys_lon, sys_lat] = car.decompose(sys);
 % Design MPC controller
-H_lon = 15; % Horizon length in seconds
+H_lon = 10; % Horizon length in seconds
 % Get control input for longitudinal subsystem
 
 %u_lon = mpc_lon.get_u(x_lon, ref_lon);%DEBUG : see what happens if we give state 80km/h and ref 120km/h
 x_lon = [0 80/3.6];   %22.2 m/s
 ref_lon = 120/3.6;    %33.3 m/s
 %[u_lon, dx, du] = mpc_lon.get_u(x_lon', ref_lon);
+x_lat = [0 80/3.6];   
+ref_lat = 3;  %on veut qu'il aille à la ref2 [3 120/3,6]
+[u_lat_0, xlat, ulat] = mpc_lat.get_u(x_lat, ref_lat);
 
 
 figure
-plot(dx(1,:));
-ylabel('position')
+plot(x_lat(1,:));
+ylabel('lane y position')
 xlabel('time [seconds/10]')
-title('Initial open-loop MPC computation : State x(1) [position]')
+title('Initial open-loop MPC computation : State x(1) [y position]')
 
 figure
-plot(dx(2,:));
-ylabel('speed')
+plot(x_lat(2,:));
+ylabel('theta')
 xlabel('time [seconds/10]')
-title('Initial open-loop MPC computation : State x(2) [speed]')
+title('Initial open-loop MPC computation : State x(2) [theta]')
 
 figure
-plot(du(1,:));
-ylabel('throttle')
+plot(u_lat(1,:));
+ylabel('steering')
 xlabel('time [seconds/10]')
 title('Initial open-loop MPC computation Input u over time')
 
