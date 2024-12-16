@@ -45,19 +45,55 @@ classdef MpcControl_lon < MpcControlBase
             % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
             obj = 0;
             con = [];
+            
+            x = sdpvar(nx, N);
+            u = sdpvar(nu, N-1);
 
+            A = mpc.A;
+            B= mpc.B;
+
+            F = [];
+            f = [];
+
+            M = [1; -1];
+            m = [1; 1];
+
+            xs = mpc.xs;
+            disp('xs =');
+            disp(xs);
+            us = mpc.us;
+            disp('us =');
+            disp(us);
+
+            Q  = 10*eye(2);
+            R = 10;
+
+            [K, Qf, ~] = dlqr(A, B,Q, R);
+            K = -K;
+
+          
+            con = [con, x(:, 1) == x0];
+            disp(check(con));
+            for i = 1:N-1
+                con = [ con, x(:, i+1) == A* (x(:, i)) + B*(u(:,i))];
+                con = [con, M*(u(:,i)) <= m];
+                obj = obj + (x(2,i) - xs(2))'*Q(2,2)*(x(2,i) - xs(2)) + (u(:,i) - us)'*R*(u(:,i) - us);
+            end
+            obj = obj + (x(2,N) - xs(2))'*Q(2,2)*(x(2,N) - xs(2));
             % Replace this line and set u0 to be the input that you
             % want applied to the system. Note that u0 is applied directly
             % to the nonlinear system. You need to take care of any 
             % offsets resulting from the linearization.
             % If you want to use the delta formulation make sure to
             % substract mpc.xs/mpc.us accordingly.
-            con = con + ( u0 == 0 );
+            con = con + ( u0 == u(:,1) );
 
             % Pass here YALMIP sdpvars which you want to debug. You can
             % then access them when calling your mpc controller like
             % [u, X, U] = mpc_lon.get_u(x0, ref);
             % with debugVars = {X_var, U_var};
+            debug_u = u;
+            debug_x = x;
             debugVars = {};
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
@@ -90,8 +126,8 @@ classdef MpcControl_lon < MpcControlBase
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
-            Vs_ref = 0;
-            us_ref = 0;
+            Vs_ref = ref;
+            us_ref = (ref - xs -A*(ref - xs))/B + us;
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         end
