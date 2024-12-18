@@ -16,9 +16,9 @@ ref_lon = 120/3.6;    %33.3 m/s
 %[u_lon, dx, du] = mpc_lon.get_u(x_lon', ref_lon);
 x_lat = [0 80/3.6];   
 ref_lat = 3;  %on veut qu'il aille à la ref2 [3 120/3,6]
-[u_lat_0, xlat, ulat] = mpc_lat.get_u(x_lat, ref_lat);
+%[u_lat_0, xlat, ulat] = mpc_lat.get_u(x_lat, ref_lat);
 
-
+%{
 figure
 plot(x_lat(1,:));
 ylabel('lane y position')
@@ -36,7 +36,7 @@ plot(u_lat(1,:));
 ylabel('steering')
 xlabel('time [seconds/10]')
 title('Initial open-loop MPC computation Input u over time')
-
+%}
 %%
 mpc_lon = MpcControl_lon(sys_lon, Ts, H_lon);
 mpc_lat = MpcControl_lat(sys_lat, Ts, H_lon);
