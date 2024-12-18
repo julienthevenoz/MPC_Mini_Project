@@ -50,28 +50,28 @@ classdef MpcControl_lat < MpcControlBase
            
             % Constraints on stat
             % x in X = { x | Fx <= f } and we know that -0.5 <= y <= 3.5 and |theta| <= 0.0873 rad
-            F = [1 0; 
-                 0 -1;
-                 1 0;
-                 0 -1];
+            F = [1, 0; 
+                 0, -1;
+                 1, 0;
+                 0, -1];
             f = [3.5; 0.5; 0.0873; 0.0873];
 
             %constratins on input u in U = {u | Mu <= u} and we know |delta| <= 0.5236 rad
-            M = [1 0;
-                 0 -1];
+            M = [1;
+                -1];
             m = [0.5236; 0.5236];
 
             %stage cost is l(x,u) = Q*xT*x + R*uT*u
             Q = 10*eye(2);
             R = 1;
 
-            %get terminal/steady controller and cost 
-            [K, Qf, ~] = dlqr(Ad,Bd,Q,R);
+            %get terminal/steady_state controller (aka control law) and terminal cost 
+            [K, Qf, ~] = dlqr(Ad,Bd,Q,R);  
 
             %let's calculate max invariant set
             % Compute maximal invariant set
-            Xf = polytope([F;M*K],[f;m]);
-            Acl = [Ad+Bd*K];
+            Xf = polytope([F;M*K],[f;m]);   %intersection of set given by state constraints and set given by input cstrts
+            Acl = Ad+Bd*K;  %closed loop dynamics. optimal u is given by K*x -> we get x+ = (A + BK)*x
             i = 0;
             while 1
                 i = i + 1;
@@ -93,10 +93,10 @@ classdef MpcControl_lat < MpcControlBase
             obj = 0;
             
             for i=1:N-1
-                x = x(:,i); u = u(:,i);  %define current u and x for convenience
-                con = con +  (x(:,i+1) == xs + Ad*(x - xs) + Bd*(u - us));  %system dynamics
-                con = con + (F*x <= f) + (M*u <= m); %constraints on acceptable states and inputs
-                obj = obj + (x-xs)'*Q*(x-xs) + (u-us)'*R*(u-us);     %cost function summing
+                xi = x(:,i); ui = u(:,i);  %define current u and x for convenience
+                con = con +  (x(:,i+1) == xs + Ad*(xi - xs) + Bd*(ui - us));  %system dynamics
+                con = con + (F*xi <= f) + (M*ui <= m); %constraints on acceptable states and inputs
+                obj = obj + (xi-xs)'*Q*(xi-xs) + (ui-us)'*R*(ui-us);     %cost function summing
             end
             con = con + (Ff*x(:,N) <= ff) + (M*u(:,N) <= m);
             obj = obj + (x(:,N) -xs)'*Qf*(x(:,N) - xs); %last term of cost function : terminal cost Vf(X_N -xs)
