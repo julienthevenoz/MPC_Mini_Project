@@ -26,11 +26,12 @@ classdef LonEstimator
             % Extended state dynamics
             est.xs_hat = [];
             est.us_hat = [];
-            est.A_hat = [];
-            est.B_hat = [];
-            est.C_hat = [];
+            est.A_hat = [A, zeros(nx,1);
+                        zeors(1, nx), 1];
+            est.B_hat = [B; zeros(1, nu)];
+            est.C_hat = [C, ones(ny,1)];
             
-            est.L = [];
+            est.L = -place(A_bar', C_bar',[0.5, 0.6, 0.7])'; %surement changer les valeurs
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

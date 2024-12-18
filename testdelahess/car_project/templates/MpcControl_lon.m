@@ -71,16 +71,15 @@ classdef MpcControl_lon < MpcControlBase
             [K, Qf, ~] = dlqr(A, B,Q, R);
             K = -K;
 
-            xs = V_ref;
-            us = u_ref;
+
             con = [con, x(:, 1) == x0];
-            disp(check(con));
+
             for i = 1:N-1
                 con = [ con, x(:, i+1) == A* (x(:, i)) + B*(u(:,i))];
                 con = [con, M*(u(:,i)) <= m];
-                obj = obj + (x(2,i) - xs)'*Q(2,2)*(x(2,i) - xs) + (u(:,i) - us)'*R*(u(:,i) - us);
+                obj = obj + (x(2,i) - V_ref)'*Q(2,2)*(x(2,i) - V_ref) + (u(:,i) - u_ref)'*R*(u(:,i) - u_ref);
             end
-            obj = obj + (x(2,N) - xs)'*Q(2,2)*(x(2,N) - xs);
+            obj = obj + (x(2,N) - V_ref)'*Q(2,2)*(x(2,N) - V_ref);
             % Replace this line and set u0 to be the input that you
             % want applied to the system. Note that u0 is applied directly
             % to the nonlinear system. You need to take care of any 
@@ -129,6 +128,7 @@ classdef MpcControl_lon < MpcControlBase
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             Vs_ref = ref;
             us_ref = (ref - xs -A*(ref - xs))/B + us;
+
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         end

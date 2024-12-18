@@ -56,14 +56,7 @@ classdef MpcControl_lat < MpcControlBase
             M = [1; -1];
             m = [0.5236 ; 0.5236];
 
-            xs = mpc.xs;
-            disp('xs =');
-            disp(xs);
-            us = mpc.us;
-            disp('us =');
-            disp(us);
-
-            Q  = 10*eye(2);
+            Q  = 50*eye(2);
             R = 1;
 
             [K, Qf, ~] = dlqr(A, B,Q, R);
@@ -71,6 +64,7 @@ classdef MpcControl_lat < MpcControlBase
                % Compute maximal invariant set
             Xf = polytope([F;M*K],[f;m]);
             Acl = [A+B*K];
+            i=1;
             while 1
                 prevXf = Xf;
                 [T,t] = double(Xf);
@@ -79,9 +73,21 @@ classdef MpcControl_lat < MpcControlBase
                 if isequal(prevXf, Xf)
                     break
                 end
-            end
+                disp('youhouuuuu');
+                i = i+1;
 
+            end
             [Ff,ff] = double(Xf);
+            
+            %plot the invariant set
+            figure;
+            Xf.plot();
+            xlabel('x1: velocity z');
+            ylabel('x2: z');
+            title('Terminal invariant set for z system ');
+            
+
+           
 
             x(:,1) = x0;
             u(:, 1) = u0;
@@ -140,8 +146,7 @@ classdef MpcControl_lat < MpcControlBase
             % Linearization steady-state
             xs = mpc.xs;
             us = mpc.us;
-            disp('ref merde');
-            disp(ref);
+
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             xs_ref = [ref; 0];
