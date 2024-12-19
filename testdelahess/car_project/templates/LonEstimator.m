@@ -43,7 +43,7 @@ classdef LonEstimator
             %est.C_hat = [Cd zeros(ny,1)];
             est.C_hat = [Cd(1) 0];  %this is the observation matrix ?
             poles = [0.5, 0.6];
-            est.L = -place(est.A_hat', est.B_hat, poles')';  %we transpose L to get a 2x1 column vector
+            est.L = -place(est.A_hat', est.C_hat', poles')';  %we transpose L to get a 2x1 column vector
             eigs(est.A_hat + est.L * est.C_hat)
 
 

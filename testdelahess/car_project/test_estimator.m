@@ -40,7 +40,7 @@ result.myCar.Z_hat(5,:)
 
 %%%plot the estimations
 figure
-plot(result.myCar.Z_hat(4,1:11));
+plot(result.myCar.Z_hat(4,:));
 hold on;
 plot(result.myCar.X(4,:));
 ylabel('V_hat estimation [m/s]')
@@ -50,7 +50,7 @@ legend('V_hat','V')
 hold off;
 
 figure
-plot(result.myCar.Z_hat(5,1:10));
+plot(result.myCar.Z_hat(5,:));
 ylabel('disturbance d')
 xlabel('time [seconds/10]')
 title('Estimated disturbance')
