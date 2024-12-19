@@ -27,16 +27,7 @@ classdef LonEstimator
             % let's define the vector estimation = [V_hat, d_hat] and error = predicted output - measured output = C*state + Cd*d - measurement
             %we have next_estimation = A_hat*estimation + B_hat*u_s + L_hat*error
             % Extended state dynamics
-<<<<<<< HEAD
-            est.xs_hat = [];
-            est.us_hat = [];
-            est.A_hat = [A, zeros(nx,1);
-                        zeors(1, nx), 1];
-            est.B_hat = [B; zeros(1, nu)];
-            est.C_hat = [C, ones(ny,1)];
-            
-            est.L = -place(A_bar', C_bar',[0.5, 0.6, 0.7])'; %surement changer les valeurs
-=======
+
             %since we're only interested by V and d, we're only interested by the parts of the discretized matrices A and B which affect V,
             % ie bottom component of B and the bottom row of A (but actually bottom left is 0, so we only want the bottom right) 
             % -> we need A(2,2) and B(2)
@@ -62,7 +53,6 @@ classdef LonEstimator
                       Cd,              Dd ];
             rhs = [zeros(size(Ad, 1), 1);  % 0 for steady-state dynamics
                    y_ref];                 % Reference output
->>>>>>> estimatorjeudi
             
             % Solve the system of equations
             sol = eq_mat \ rhs;

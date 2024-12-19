@@ -56,16 +56,12 @@ classdef MpcControl_lat < MpcControlBase
             M = [1; -1];
             m = [0.5236 ; 0.5236];
 
-<<<<<<< HEAD
-            Q  = 50*eye(2);
-=======
             xs = mpc.xs;
 
             us = mpc.us;
 
 
             Q  = 10*eye(2);
->>>>>>> estimatorjeudi
             R = 1;
 
             [K, Qf, ~] = dlqr(A, B,Q, R);
