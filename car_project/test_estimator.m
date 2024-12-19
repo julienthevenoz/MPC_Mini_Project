@@ -31,12 +31,6 @@ params.myCar.u = @mpc.get_u;
 params.myCar.ref = car.ref_step(ref1, ref2, 2); % delay reference step by 2s;
 result = simulate(params);
 %%
-%print estimations
-result.myCar.X(4,:)
-result.myCar.Z_hat(4,:)
-result.myCar.Z_hat(5,:)
-
-
 
 %%%plot the estimations
 figure
@@ -54,13 +48,6 @@ plot(result.myCar.Z_hat(5,:));
 ylabel('disturbance d')
 xlabel('time [seconds/10]')
 title('Estimated disturbance')
-
-% figure
-% plot(xlat(2,:));
-% ylabel('theta')
-% xlabel('time [seconds/10]')
-% title('Initial open-loop MPC computation : State x(2) [theta]')
-
 
 %%
 visualization(car, result);
