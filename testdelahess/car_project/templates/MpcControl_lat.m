@@ -56,7 +56,16 @@ classdef MpcControl_lat < MpcControlBase
             M = [1; -1];
             m = [0.5236 ; 0.5236];
 
+<<<<<<< HEAD
             Q  = 50*eye(2);
+=======
+            xs = mpc.xs;
+
+            us = mpc.us;
+
+
+            Q  = 10*eye(2);
+>>>>>>> estimatorjeudi
             R = 1;
 
             [K, Qf, ~] = dlqr(A, B,Q, R);
@@ -94,7 +103,6 @@ classdef MpcControl_lat < MpcControlBase
             con = [con, x(:, 2) == A* (x(:, 1)) + B*(u(:,1))];
             con = [con, M*u(:,1) <= m];
             %obj = u(:,1)'*R*u(:,1);
-            disp(check(con));
             for i = 2:N-1
                 con = [con, x(:, i+1) == A* (x(:, i)) + B*(u(:,i))];
                 con = [con, M*(u(:,i)) <= m];
