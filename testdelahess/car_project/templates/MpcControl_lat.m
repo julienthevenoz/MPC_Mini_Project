@@ -41,6 +41,59 @@ classdef MpcControl_lat < MpcControlBase
 
             obj = 0;
             con = [];
+            x = sdpvar(2, N, 'full');
+            u = sdpvar(1, N-1, 'full');
+
+            A = mpc.A;
+            B= mpc.B;
+
+            F = [1, 0 ;
+                0, 1 ; 
+                -1, 0 ;
+                0, -1];
+            f = [3.5; 0.0873; 0.5; 0.0873];
+
+            M = [1; -1];
+            m = [0.5236 ; 0.5236];
+
+            xs = mpc.xs;
+
+            us = mpc.us;
+
+
+            Q  = 10*eye(2);
+            R = 1;
+
+            [K, Qf, ~] = dlqr(A, B,Q, R);
+            K = -K;
+               % Compute maximal invariant set
+            Xf = polytope([F;M*K],[f;m]);
+            Acl = [A+B*K];
+            while 1
+                prevXf = Xf;
+                [T,t] = double(Xf);
+                preXf = polytope(T*Acl,t);
+                Xf = intersect(Xf, preXf);
+                if isequal(prevXf, Xf)
+                    break
+                end
+            end
+
+            [Ff,ff] = double(Xf);
+
+            x(:,1) = x0;
+            u(:, 1) = u0;
+            con = [con, x(:, 2) == A* (x(:, 1)) + B*(u(:,1))];
+            con = [con, M*u(:,1) <= m];
+            %obj = u(:,1)'*R*u(:,1);
+            for i = 2:N-1
+                con = [con, x(:, i+1) == A* (x(:, i)) + B*(u(:,i))];
+                con = [con, M*(u(:,i)) <= m];
+                con = [con, F*x(:,i) <= f];
+                obj = obj + (x(:,i) - x_ref)'*Q*(x(:,i) - x_ref) + (u(:,i) - u_ref)'*R*(u(:,i) - u_ref);
+            end
+            obj = obj + (x(:,N) - x_ref)'*Qf*(x(:,N) - x_ref);
+            con = [con, Ff*x(:,i) <= ff];
 
             % Replace this line and set u0 to be the input that you
             % want applied to the system. Note that u0 is applied directly
@@ -48,13 +101,15 @@ classdef MpcControl_lat < MpcControlBase
             % offsets resulting from the linearization.
             % If you want to use the delta formulation make sure to
             % substract mpc.xs/mpc.us accordingly.
-            con = con + ( u0 == 0 );
+            %con = con + ( u0 == 0 );
+            %con = con + ( u0 == u(:,1) );
+
 
             % Pass here YALMIP sdpvars which you want to debug. You can
             % then access them when calling your mpc controller like
             % [u, X, U] = mpc_lat.get_u(x0, ref);
             % with debugVars = {X_var, U_var};
-            debugVars = {};
+            debugVars = {x, u};
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -85,8 +140,8 @@ classdef MpcControl_lat < MpcControlBase
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
-            xs_ref = [0; 0];
-            us_ref = 0;
+            xs_ref = [ref; 0];
+            us_ref = ((1-A(1,1))*(xs_ref(1)-xs(1))-A(1,2)*(xs_ref(2)-xs(2)))/B(1) + us;
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         end
