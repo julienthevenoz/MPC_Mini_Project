@@ -127,50 +127,14 @@ classdef MpcControl_lon < MpcControlBase
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             x_ref = ref; %just for clarity
+
             Vs_ref = x_ref;  %we have a perfect sensor so measurement = state
+
             us_ref = (x_ref - B*d_est - xs -A*(x_ref - xs))/B + us;  %assuming Bd_hat mentionned in part 4 is B_discretized(2). So it' the same as B in this case
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         end
-
-        %% COMPUTE_SP function from exercise 5.
-        % Since the estimate of the disturbance change at every time-step, we
-        % compute a feasible setpoint every time solving the following minimization
-        % problem :
-        %
-        % [xsp,usp] = argmin(u)
-        %             s.t. xsp = A*xsp + B*usp
-        %                  rsp == C*xsp + d
-        %                  umin <= usp <= umax
-        %
-        
-        function [xs, us] = compute_sp(A,B,C,R,r,d,umin,umax)
-        
-        nx = size(A,1);
-        nu = size(B,2);
-        
-        u = sdpvar(nu,1);   %sdpvar is how you create a symbolic variable in yalmip. ymbolic variables are unknown quantities 
-        x = sdpvar(nx,1);   %that can be manipulated by yalmip to solve opti problems (i.e they're exactly what humans think of as a "variable")
-        
-        %setup the problem in yalmip
-        constraints = [umin <= u <= umax ,...
-                        x == fd + A*x + B*u + B_d_hat * d,...
-                        r == C*x + d      ];
-        %setup the objective we want to optimize for : using the minimum possible input every time to stay at x_s
-        objective   = u^2;
-        diagnostics = solvesdp(constraints,objective,sdpsettings('verbose',0));
-        
-        if diagnostics.problem == 0
-           % Good! 
-        elseif diagnostics.problem == 1
-            throw(MException('','Infeasible (compute_sp)'));
-        else
-            throw(MException('','Something else happened (compute_sp)'));
-        end
-        
-        xs = double(x);
-        us = double(u);
-        
-        end
     end
 end
+
+        

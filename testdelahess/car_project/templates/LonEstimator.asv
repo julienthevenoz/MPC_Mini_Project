@@ -18,8 +18,14 @@ classdef LonEstimator
             us = sys.UserData.us;
             
             % Discretize the system and extract the A,B,C,D matrices
-            [~, Ad, Bd, Cd, Dd] = Car.c2d_with_offset(sys, Ts);
-  
+            [~, Ad, Bd, Cd, ~] = Car.c2d_with_offset(sys, Ts);
+            est.xs_hat = []; %[Vs_hat] ?
+            est.us_hat = [];
+            est.A_hat = [];
+            est.B_hat = [];
+            est.C_hat = [];  %bons
+            
+            est.L = [];
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
 
@@ -31,34 +37,25 @@ classdef LonEstimator
             % ie bottom component of B and the bottom row of A (but actually bottom left is 0, so we only want the bottom right) 
             % -> we need A(2,2) and B(2)
             %Cd is the discretized version of observation matrix C. In our case I think they are both identity ?
-            est.A_hat = [Ad(2,2), Bd(2);
+            disp ('A');
+            disp (Ad);
+            disp ('B');
+            disp (Bd);
+            disp ('C');
+            disp (Cd);
+            est.A_hat = [Ad  Bd(2);
                          0          1];
             est.B_hat = [Bd(2); 0];   %2x1 vector
             %est.C_hat = [Cd zeros(ny,1)];
             est.C_hat = [Cd(1) 0];  %this is the observation matrix ?
             poles = [0.5, 0.6];
-            est.L = -place(est.A_hat', est.C_hat', poles')';  %we transpose L to get a 2x1 column vector
-            %eigs(est.A_hat + est.L * est.C_hat)
+            est.L = -place(est.A_hat', est.B_hat, poles')';  %we transpose L to get a 2x1 column vector
+            eigs(est.A_hat + est.L * est.C_hat)
 
 
-            % Extended linearization points
-            % Solve for xs_hat and us_hat at steady state
-            % At steady state: x_s = Ad*x_s + Bd*u_s
-            %                  y_ref = Cd*x_s + Dd*u_s
-            y_ref = xs;  % Assume the reference is the nominal state value
-            
-            % Formulate the steady-state equations
-            eq_mat = [eye(size(Ad)) - Ad, -Bd;
-                      Cd,              Dd ];
-            rhs = [zeros(size(Ad, 1), 1);  % 0 for steady-state dynamics
-                   y_ref];                 % Reference output
-            
-            % Solve the system of equations
-            sol = eq_mat \ rhs;
-            
-            % Extract the steady-state states and inputs
-            est.xs_hat = sol(1:size(Ad, 1));  % First part of solution is x_s
-            est.us_hat = sol(size(Ad, 1) + 1:end);  % Second part is u_s
+            %extended linearization points. What are they ????? where are they used ????
+            est.xs_hat = xs;
+            est.us_hat = us; 
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         end
@@ -82,6 +79,10 @@ classdef LonEstimator
             % Estimation equation
             estimation_error = z_hat(1) - y; % predicted V - measured V is the error in our estiamtion
             z_hat_next = est.A_hat*z_hat + est.B_hat*u + est.L * estimation_error;
+            disp ('u');
+            disp (u);
+            disp ('L');
+            disp (est.L);
 
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

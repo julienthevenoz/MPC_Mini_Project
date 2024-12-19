@@ -31,11 +31,6 @@ params.myCar.u = @mpc.get_u;
 params.myCar.ref = car.ref_step(ref1, ref2, 2); % delay reference step by 2s;
 result = simulate(params);
 %%
-%print estimations
-result.myCar.X(4,:)
-result.myCar.Z_hat(4,:)
-result.myCar.Z_hat(5,:)
-
 
 
 %%%plot the estimations
