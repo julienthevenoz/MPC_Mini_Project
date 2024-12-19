@@ -57,11 +57,9 @@ classdef MpcControl_lat < MpcControlBase
             m = [0.5236 ; 0.5236];
 
             xs = mpc.xs;
-            disp('xs =');
-            disp(xs);
+
             us = mpc.us;
-            disp('us =');
-            disp(us);
+
 
             Q  = 10*eye(2);
             R = 1;
@@ -88,7 +86,6 @@ classdef MpcControl_lat < MpcControlBase
             con = [con, x(:, 2) == A* (x(:, 1)) + B*(u(:,1))];
             con = [con, M*u(:,1) <= m];
             %obj = u(:,1)'*R*u(:,1);
-            disp(check(con));
             for i = 2:N-1
                 con = [con, x(:, i+1) == A* (x(:, i)) + B*(u(:,i))];
                 con = [con, M*(u(:,i)) <= m];
@@ -140,8 +137,7 @@ classdef MpcControl_lat < MpcControlBase
             % Linearization steady-state
             xs = mpc.xs;
             us = mpc.us;
-            disp('ref merde');
-            disp(ref);
+
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             xs_ref = [ref; 0];

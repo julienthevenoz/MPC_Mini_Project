@@ -51,19 +51,17 @@ classdef MpcControl_lon < MpcControlBase
 
             A = mpc.A;
             B= mpc.B;
+            B_d_hat = B(2);
 
             F = [];
             f = [];
 
             M = [1; -1];
             m = [1; 1];
+            % 
+            % xs = mpc.xs;
+            % us = mpc.us;
 
-            xs = mpc.xs;
-            disp('xs =');
-            disp(xs);
-            us = mpc.us;
-            disp('us =');
-            disp(us);
 
             Q  = 10*eye(2);
             R = 10;
@@ -71,16 +69,15 @@ classdef MpcControl_lon < MpcControlBase
             [K, Qf, ~] = dlqr(A, B,Q, R);
             K = -K;
 
-            xs = V_ref;
-            us = u_ref;
+            % xs = V_ref;
+            % us = u_ref;
             con = [con, x(:, 1) == x0];
-            disp(check(con));
             for i = 1:N-1
-                con = [ con, x(:, i+1) == A* (x(:, i)) + B*(u(:,i))];
+                con = [ con, x(:, i+1) == A* (x(:, i)) + B*(u(:,i)) + B_d_hat*d_est ];   %i'm very very unsure of this
                 con = [con, M*(u(:,i)) <= m];
-                obj = obj + (x(2,i) - xs)'*Q(2,2)*(x(2,i) - xs) + (u(:,i) - us)'*R*(u(:,i) - us);
+                obj = obj + (x(2,i) - V_ref)'*Q(2,2)*(x(2,i) - V_ref) + (u(:,i) - u_ref)'*R*(u(:,i) - u_ref);
             end
-            obj = obj + (x(2,N) - xs)'*Q(2,2)*(x(2,N) - xs);
+            obj = obj + (x(2,N) - V_ref)'*Qf(2,2)*(x(2,N) - V_ref);
             % Replace this line and set u0 to be the input that you
             % want applied to the system. Note that u0 is applied directly
             % to the nonlinear system. You need to take care of any 
@@ -96,6 +93,8 @@ classdef MpcControl_lon < MpcControlBase
             debug_u = u;
             debug_x = x;
             debugVars = {};
+
+
             
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -127,10 +126,51 @@ classdef MpcControl_lon < MpcControlBase
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
-            Vs_ref = ref;
-            us_ref = (ref - xs -A*(ref - xs))/B + us;
+            x_ref = ref; %just for clarity
+            Vs_ref = x_ref;  %we have a perfect sensor so measurement = state
+            us_ref = (x_ref - B*d_est - xs -A*(x_ref - xs))/B + us;  %assuming Bd_hat mentionned in part 4 is B_discretized(2). So it' the same as B in this case
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        end
+
+        %% COMPUTE_SP function from exercise 5.
+        % Since the estimate of the disturbance change at every time-step, we
+        % compute a feasible setpoint every time solving the following minimization
+        % problem :
+        %
+        % [xsp,usp] = argmin(u)
+        %             s.t. xsp = A*xsp + B*usp
+        %                  rsp == C*xsp + d
+        %                  umin <= usp <= umax
+        %
+        
+        function [xs, us] = compute_sp(A,B,C,R,r,d,umin,umax)
+        
+        nx = size(A,1);
+        nu = size(B,2);
+        
+        u = sdpvar(nu,1);   %sdpvar is how you create a symbolic variable in yalmip. ymbolic variables are unknown quantities 
+        x = sdpvar(nx,1);   %that can be manipulated by yalmip to solve opti problems (i.e they're exactly what humans think of as a "variable")
+        
+        %setup the problem in yalmip
+        constraints = [umin <= u <= umax ,...
+                        x == fd + A*x + B*u + B_d_hat * d,...
+                        r == C*x + d      ];
+        %setup the objective we want to optimize for : using the minimum possible input every time to stay at x_s
+        objective   = u^2;
+        diagnostics = solvesdp(constraints,objective,sdpsettings('verbose',0));
+        
+        if diagnostics.problem == 0
+           % Good! 
+        elseif diagnostics.problem == 1
+            throw(MException('','Infeasible (compute_sp)'));
+        else
+            throw(MException('','Something else happened (compute_sp)'));
+        end
+        
+        xs = double(x);
+        us = double(u);
+        
         end
     end
 end
