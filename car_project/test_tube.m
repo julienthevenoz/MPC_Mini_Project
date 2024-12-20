@@ -59,9 +59,10 @@ params.otherCar.u = car.u_const(100/3.6);
 result = simulate(params); 
 visualization(car, result);
 %}
+
 otherRef = 100 / 3.6;
 params = {};
-params.Tf = 35;
+params.Tf = 30;
 params.myCar.model = car;
 params.myCar.x0 = [0 0 0 115/3.6]'; 
 params.myCar.u = @mpc.get_u; 
