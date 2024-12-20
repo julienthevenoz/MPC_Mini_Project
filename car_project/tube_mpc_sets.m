@@ -56,7 +56,7 @@ for i = 1:max_iterations
     E = E_next;
 end
 
-
+    
 
 if i == max_iterations
     fprintf("E didn't pass vibe check")
@@ -65,4 +65,6 @@ end
 figure
 plot([W E])
 legend('Disturbance set W', 'min robust invariant set E')
+xlabel('throttle u_T ??? not sure actually ')
+ylabel('what is this axis tho ???')
 grid on
