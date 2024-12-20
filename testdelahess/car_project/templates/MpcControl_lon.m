@@ -64,7 +64,7 @@ classdef MpcControl_lon < MpcControlBase
 
 
             Q  = 10*eye(2);
-            R = 10;
+            R = 1;
 
             [K, Qf, ~] = dlqr(A, B,Q, R);
             K = -K;
@@ -72,7 +72,6 @@ classdef MpcControl_lon < MpcControlBase
 
 
             con = [con, x(:, 1) == x0];
-
 
             for i = 1:N-1
                 con = [ con, x(:, i+1) == A* (x(:, i)) + B*(u(:,i)) + B_d_hat*d_est ];   %i'm very very unsure of this

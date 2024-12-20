@@ -60,6 +60,7 @@ classdef LonEstimator
             % Extract the steady-state states and inputs
             est.xs_hat = sol(1:size(Ad, 1));  % First part of solution is x_s
             est.us_hat = sol(size(Ad, 1) + 1:end);  % Second part is u_s
+
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         end

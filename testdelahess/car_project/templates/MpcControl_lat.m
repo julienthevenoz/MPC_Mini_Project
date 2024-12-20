@@ -87,12 +87,9 @@ classdef MpcControl_lat < MpcControlBase
             %plot the invariant set
             figure;
             Xf.plot();
-            xlabel('x1: velocity z');
-            ylabel('x2: z');
-            title('Terminal invariant set for z system ');
-            
-
-           
+            xlabel('x1: velocity latitude');
+            ylabel('angle theta');
+            title('Terminal invariant set for latitude system ');
 
             x(:,1) = x0;
             u(:, 1) = u0;
