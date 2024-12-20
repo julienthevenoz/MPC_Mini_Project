@@ -27,33 +27,30 @@ W_lifted = B*W;
 %find the control law K that stabilizes the dynamics (i.e eigs(A + B*K) < 1) -> just use LQR controller ?
 Q = 10*eye(2); %same values as usual ??
 R = 1;
-[K, Qf, ~] = dlqr(A, B,Q, R);
+% [K, Qf, ~] = dlqr(A, B,Q, R);
+poles = [0.7, 0.8];
+K = -place(A, B, poles);
+eigs(A+B*K)
 
-
+%%
 
 % let's find the minimum robust invariant set E (epsilon in the lecture)
 %we start with initial set E = {0}
-E = Polyhedron('lb', [0, 0], 'ub', [0, 0]); %lb and ub define lower and upper bound of a box shaped polyhedron, in this case since bounds are 0 0, it's {0} set
-
-% max_iterations = 1000;
-% for i = 1:max_iterations
-%     E_next = (A + B*K) * E + W_lifted; % if E and W are Polyhedron, the operator + acts as Minkowski sum and not normal addition in MPT
-%     if abs(E_next.volume - E.volume) < 1e-2 %check if diff is sufficiently small to terminate
-%         fprintf("minimum robust invariant set passed vibe check after %i iterations", i)
-%             break;
-%     end
-%     E = E_next;
-% end
+% E = Polyhedron('lb', [0, 0], 'ub', [0, 0]); %lb and ub define lower and upper bound of a box shaped polyhedron, in this case since bounds are 0 0, it's {0} set
 
 
+E = Polyhedron.emptySet(2);
 max_iterations = 1000;
-for i = 1:max_iterations
+i = 1;
+while true
     E_next = E + (A + B*K)^i*W_lifted; % if E and W are Polyhedron, the operator + acts as Minkowski sum and not normal addition in MPT
+    E_next = minHRep(E_next);
     if norm((A+ B*K)^i) < 1e-2   %check if diff is sufficiently small to terminate
         fprintf("minimum robust invariant set passed vibe check after %i iterations", i)
             break;
     end
     E = E_next;
+    i = i+1;
 end
 
     
