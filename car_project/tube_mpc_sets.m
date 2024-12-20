@@ -66,9 +66,37 @@ if i == max_iterations
     fprintf("E didn't pass vibe check")
 end
 %%
+x_safe = 6;
+F = [-1 0;
+     0   0];
+f = [-x_safe ;
+    0];
+X = Polyhedron(F,f);
+M = [1; -1];
+m = [1; 1];
+U = Polyhedron(M,m);
+X_tightened = X - E;
+U_tightened = U - K*E;
+
+
 figure
 plot([W_lifted E])
-legend('Disturbance set W', 'min robust invariant set E')
+legend('Disturbance set W_lifted', 'min robust invariant set E')
+xlabel('throttle u_T ??? not sure actually ')
+ylabel('what is this axis tho ???')
+grid on
+
+
+figure 
+plot([X X_tightened])
+legend("X", "tightened X")
+xlabel('what is here ? ')
+ylabel('what is this axis tho ???')
+grid on
+
+figure 
+plot([U U_tightened])
+legend("U", "tightened U")
 xlabel('throttle u_T ??? not sure actually ')
 ylabel('what is this axis tho ???')
 grid on
