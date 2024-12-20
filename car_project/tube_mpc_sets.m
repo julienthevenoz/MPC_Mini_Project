@@ -4,14 +4,10 @@ Ts = 1/10; % Sample time
 car = Car(Ts);
 [xs, us] = car.steady_state(120 / 3.6); 
 sys = car.linearize(xs, us);
-[sys_lon, sys_lat] = car.decompose(sys);
+[sys_lon, ~] = car.decompose(sys);
 [~, Ad, Bd, ~, ~] = Car.c2d_with_offset(sys, Ts);
 H_lon = 15;
-%est-ce qu'il faut utiliser sys_lon.A ou les c2d with offsets ?
-A = [0 Ad(1,4); 
-     0 Ad(4,4)];
-B = [0;
-     Bd(4,2)];
+
 u_T_s = us(2);
 
 
@@ -34,11 +30,10 @@ R = 1;
 % [K, Qf, ~] = dlqr(A, B,Q, R);
 poles = [0.7, 0.8];
 K = -place(A, -B, poles);
-A_cl = A-B*K; %closed loop controlled system dynamics
-fprintf("eigenvalues of our control system should be stable. Are they?");
-fprintf("%g", eigs(A_cl));
 
-%%
+A_cl = A-B*K; %closed loop controlled system dynamics
+fprintf("eigenvalues of our control system should be stable. Are they?  ");
+fprintf("%g \n", eigs(A_cl));
 
 % let's find the minimum robust invariant set E (epsilon in the lecture)
 %we start with initial set E = {0}
@@ -46,7 +41,6 @@ fprintf("%g", eigs(A_cl));
 
 
 E = Polyhedron.emptySet(2);
-max_iterations = 1000;
 i = 1;
 while true
     E_next = E + A_cl^i*W_lifted; % if E and W are Polyhedron, the operator + acts as Minkowski sum and not normal addition in MPT
@@ -56,16 +50,11 @@ while true
             break;
     end
     E = E_next;
-    i = i+1;
     fprintf('iteration %i and norm %i \n',i, norm(A_cl^i));
-end
-
-    
-
-if i == max_iterations
-    fprintf("E didn't pass vibe check")
+    i = i+1; 
 end
 %%
+% now that we have the min robust invariant set E, we can use it to find the tightened state and input constraints
 x_safe = 6;
 F = [-1 0;
      0   0];
@@ -77,7 +66,19 @@ m = [1; 1];
 U = Polyhedron(M,m);
 X_tightened = X - E;
 U_tightened = U - K*E;
+%%
+%finally let's calculate the terminal set and terminal cost
+[Q_f, ~, ~] = dare(A_cl, B, Q, R); %the terminal cost is Qf = P, the solution of  discrete-time algebraic Riccati equation:
+F_tight = X_tightened.A;
+f_tight = X_tightened.b;
+M_tight = U_tightened.A;
+m_tight = U_tightened.b;
+X_f = Polyhedron([F_tight; M_tight*K], [f_tight; m_tight]);
 
+
+
+%%
+close all;
 
 figure
 plot([W_lifted E])
@@ -88,8 +89,8 @@ grid on
 
 
 figure 
-plot([X X_tightened])
-legend("X", "tightened X")
+plot([X X_tightened X_f])
+legend("X", "tightened X", "terminal set X_f")
 xlabel('what is here ? ')
 ylabel('what is this axis tho ???')
 grid on
@@ -100,5 +101,6 @@ legend("U", "tightened U")
 xlabel('throttle u_T ??? not sure actually ')
 ylabel('what is this axis tho ???')
 grid on
+%%
 
-
+save('tube_mpc_data.mat', 'X_tightened', 'U_tightened', "Q_f", "X_f")
