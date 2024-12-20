@@ -1,19 +1,17 @@
-
+close all;
+clear all;
 Ts = 1/10; % Sample time
 car = Car(Ts);
-[~, us] = car.steady_state(120 / 3.6); 
+[xs, us] = car.steady_state(120 / 3.6); 
 sys = car.linearize(xs, us);
-[sys_lon, sys_lat] = car.decompose(sys);
+%[sys_lon, sys_lat] = car.decompose(sys);
+[~, Ad, Bd, ~, ~] = Car.c2d_with_offset(sys, Ts);
 
-% Design MPC controller
-H_lon = 15; % Horizon length in seconds
-% Get control input for longitudinal subsystem
-mpc_lon = MpcControl_lon(sys_lon, Ts, H_lon);
-mpc_lat = MpcControl_lat(sys_lat, Ts, H_lon);
-mpc = car.merge_lin_controllers(mpc_lon, mpc_lat);
-
-A = sys_lon.A;  %est-ce qu'il faut utiliser sys_lon.A ou mpc_lon.A ? je comprends meme pas la diff entre les deux mais ils sont différents
-B = sys_lon.B;
+%est-ce qu'il faut utiliser sys_lon.A ou les c2d with offsets ?
+A = [0 Ad(1,4); 
+     0 Ad(4,4)];
+B = [0;
+     Bd(4,2)];
 u_T_s = us(2);
 
 %define cstrsts us - 0.5 < u_T < us + 0.5
@@ -29,8 +27,10 @@ Q = 10*eye(2); %same values as usual ??
 R = 1;
 % [K, Qf, ~] = dlqr(A, B,Q, R);
 poles = [0.7, 0.8];
-K = -place(A, B, poles);
-eigs(A+B*K)
+K = -place(A, -B, poles);
+A_cl = A-B*K; %closed loop controlled system dynamics
+fprintf("eigenvalues of our control system should be stable. Are they?");
+fprintf("%g", eigs(A_cl));
 
 %%
 
@@ -43,14 +43,15 @@ E = Polyhedron.emptySet(2);
 max_iterations = 1000;
 i = 1;
 while true
-    E_next = E + (A + B*K)^i*W_lifted; % if E and W are Polyhedron, the operator + acts as Minkowski sum and not normal addition in MPT
+    E_next = E + A_cl^i*W_lifted; % if E and W are Polyhedron, the operator + acts as Minkowski sum and not normal addition in MPT
     E_next = minHRep(E_next);
-    if norm((A+ B*K)^i) < 1e-2   %check if diff is sufficiently small to terminate
+    if norm(A_cl^i) < 1e-2   %check if diff is sufficiently small to terminate
         fprintf("minimum robust invariant set passed vibe check after %i iterations", i)
             break;
     end
     E = E_next;
     i = i+1;
+    fprintf('iteration %i and norm %i \n',i, norm(A_cl^i));
 end
 
     
