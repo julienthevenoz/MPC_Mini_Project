@@ -1,5 +1,5 @@
 classdef MpcControl_lon < MpcControlBase
-
+    
     methods
         % Design a YALMIP optimizer object that takes a steady-state state
         % and input (xs, us) and returns a control input
@@ -29,8 +29,6 @@ classdef MpcControl_lon < MpcControlBase
 
             % Initial states
             x0 = sdpvar(nx, 1);
-           
-     
             x0other = sdpvar(nx, 1); % (Ignore this before Todo 5.1)
 
             % Input to apply to the system
@@ -45,102 +43,82 @@ classdef MpcControl_lon < MpcControlBase
             %       in mpc.xs and mpc.us.
             
             % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
-            delta_x= sdpvar(nx,N);
-            delta_u = sdpvar(nu, N-1);
 
+            load('tube_mpc_data.mat', 'X_tightened', 'U_tightened', 'X_f', 'P');
+            %load('tube_mpc_data.mat');
 
-            A = mpc.A;
-            B = mpc.B;
-
-            % Constraints on state : None
-            %Constraints on input
-            M =[1;-1];
-            m = [1;1];
-
-            %N=10;
-            %no idea where we get this info but
-            Q= 10*eye(2);
-            R=1;
+            F_tight = X_tightened.A;
+            M_tight = U_tightened.A;
+            f_tight = X_tightened.b;
+            m_tight = U_tightened.b;
             
-            
-            %COMPUTE TERMINAL CONTROLLER
-            [K, Qf, ~]=dlqr(A,B,Q,R); %I guess 
-            K=-K;
-            % K:the optimal gain matrix
-            % Qt:the solution of the associated algebraic Riccati equation
-            disp(K);
-            
-       
-            Xf=polytope([M*K],[m]); %Hs of exercise 3 are replaced by Fs
-            Acl=[A+B*K];
-            
-            h7=plot(Xf, 'c');
-            hold on;
-            i = 1;
-
-            %{
-            while 1
-                Xf_prev = Xf;
-                [P,p]=double(Xf); % initiates F matrix and f vector with defining matrix and vector of Xf
-                preXf = polytope(P*Acl,p);
-                
-                Xf=intersect(Xf, preXf);%new polytope which is the intersection with the preset
-                if Xf == Xf_prev
-                    break;
-                end
-            
-                h4=plot(Xf, 'y'); 
-	            fprintf('Iteration %i... not yet equal\n', i)
-	            
-            
-	            i = i + 1;
-            end
-            
-            fprintf('Maximal invariant set computed after %i iterations\n\n', i);
-            h5=plot(Xf,'g');
-            legend([h5;h4;h7],{'Invariant set';'State constraints';'Iterations'});
-           
-            [Ff,ff] = double(Xf); % initiates Ff and ff vector with defining matrix and vector of Xf
-
-
             obj = 0;
             con = [];
             
-            xs = mpc.xs;
+            x = sdpvar(nx, N, 'full');
+            u = sdpvar(nu, N-1, 'full');
+
+            A = mpc.A;
+            B = mpc.B;
+            B_d_hat = B(2);
+
+
+            F = [];
+            f = [];
+
+            M = [1; -1];
+            m = [1; 1];
+            % 
+            % xs = mpc.xs;
+            % us = mpc.us;
+
+
+            Q  = 10*eye(2);
+            R = 10;
+
+            [K, Qf, ~] = dlqr(A, B,Q, R);
+            K = -K;
+
             us = mpc.us;
-            con = [con, delta_x(:,1) == x0 - xs];
-            con = [con, delta_u(:,1) == u0 - us];
-           % obj = delta_u(:,1)'*R*delta_u(:,1); % Cost function
 
+            delta = sdpvar(nx, N, 'full');
+            z = sdpvar(nx, N, 'full');
+            v = sdpvar(nu, N-1, 'full');
+            e = sdpvar(nx, N, 'full');
+            x_safe = 10;
+            con = [con, delta(:, 1) == x0-x0other-[x_safe;0]];
 
+            % xs = V_ref;
+            % us = u_ref;
+            %con = [con, x(:, 1) == x0];
             for i = 1:N-1
-                con = [con, delta_x(:,i+1) == A*delta_x(:,i) + B*delta_u(:,i)];   % System dynamics
-                %con = [con, F*x(:,i) <= f];                     % No State constraints :
-                con = [con, M*delta_u(:,i) <= m - M*us];                     % Input constraints
-                obj = obj + delta_x(:,i)'*Q*delta_x(:,i) + delta_u(:,i)'*R*delta_u(:,i); % Cost function
+                %con = [ con, delta(:, i+1) == A* (delta(:, i)) - B*(u(:,i))  ];  
+                con = [ con, z(:, i+1) == A* (z(:, i)) - B*(v(:,i))  ];  
+                con = [ con, e(:, i+1) == (A* - B*K)*e(:, i) ]; %i'm very very unsure of this
+                con = [con, u(:,i) == K*(delta(:,i)-z(:,i)) + v(:,i)];
+                con = [con, M_tight*(u(:,i)) <= m_tight];
+                %obj = obj + (delta(:,i))'*P*(delta(:,i)) + (u(:,i))'*R*(u(:,i));
+                obj = obj + z(:,i)
             end
-            %con = [con, M*delta_u(:,N) <= m - M*us]; % Terminal constraint
-            obj = obj + delta_x(:,N)'*Qf*delta_x(:,N);    % Terminal weight
-
+            obj = obj + (delta(:,N))'*P*(delta(:,N));
             % Replace this line and set u0 to be the input that you
             % want applied to the system. Note that u0 is applied directly
             % to the nonlinear system. You need to take care of any 
             % offsets resulting from the linearization.
             % If you want to use the delta formulation make sure to
             % substract mpc.xs/mpc.us accordingly.
-            input = delta_u(:,1) + us;
-            con = con + ( u0 == input);
-            
+            con = con + ( u0 == u(:,1) );
 
             % Pass here YALMIP sdpvars which you want to debug. You can
             % then access them when calling your mpc controller like
             % [u, X, U] = mpc_lon.get_u(x0, ref);
             % with debugVars = {X_var, U_var};
-            X_var = x0-mpc.xs;
-            U_var = u0-mpc.us;
-            debugVars = {X_var, U_var};
+            debug_u = u;
+            debug_x = x;
+            debugVars = {};
+
+
             
-            %[u_lon, X_lon, U_lon] = mpc_lon.get_u(x_lon, ref_lon);
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
@@ -162,8 +140,8 @@ classdef MpcControl_lon < MpcControlBase
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
             % Steady-state subsystem
-            A = mpc.A(2, 2); % déjà discrétisé dans MpcControlBase
-            B = mpc.B(2, 1); % déjà discrétisé dans MpcControlBase
+            A = mpc.A(2, 2);
+            B = mpc.B(2, 1);
 
             % Subsystem linearization steady-state
             xs = mpc.xs(2);
@@ -171,12 +149,23 @@ classdef MpcControl_lon < MpcControlBase
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
-            
-            Vs_ref = ref; %correct
-            us_ref = (Vs_ref - xs-A*(Vs_ref-xs))/B +us;
-           % us_ref =0;
+            x_ref = ref; %just for clarity
+            Vs_ref = x_ref;  %we have a perfect sensor so measurement = state
+            us_ref = (x_ref - B*d_est - xs -A*(x_ref - xs))/B + us;  %assuming Bd_hat mentionned in part 4 is B_discretized(2). So it' the same as B in this case
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         end
+
+        %% COMPUTE_SP function from exercise 5.
+        % Since the estimate of the disturbance change at every time-step, we
+        % compute a feasible setpoint every time solving the following minimization
+        % problem :
+        %
+        % [xsp,usp] = argmin(u)
+        %             s.t. xsp = A*xsp + B*usp
+        %                  rsp == C*xsp + d
+        %                  umin <= usp <= umax
+        %
+        
     end
 end
