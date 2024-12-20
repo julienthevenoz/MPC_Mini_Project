@@ -4,15 +4,21 @@ Ts = 1/10; % Sample time
 car = Car(Ts);
 [xs, us] = car.steady_state(120 / 3.6); 
 sys = car.linearize(xs, us);
-%[sys_lon, sys_lat] = car.decompose(sys);
+[sys_lon, sys_lat] = car.decompose(sys);
 [~, Ad, Bd, ~, ~] = Car.c2d_with_offset(sys, Ts);
-
+H_lon = 15;
 %est-ce qu'il faut utiliser sys_lon.A ou les c2d with offsets ?
 A = [0 Ad(1,4); 
      0 Ad(4,4)];
 B = [0;
      Bd(4,2)];
 u_T_s = us(2);
+
+
+
+mpc_lon = MpcControl_lon(sys_lon, Ts, H_lon);
+A = mpc_lon.A;
+B = mpc_lon.B;
 
 %define cstrsts us - 0.5 < u_T < us + 0.5
 T = [1; -1];
@@ -59,10 +65,12 @@ end
 if i == max_iterations
     fprintf("E didn't pass vibe check")
 end
-
+%%
 figure
-plot([W E])
+plot([W_lifted E])
 legend('Disturbance set W', 'min robust invariant set E')
 xlabel('throttle u_T ??? not sure actually ')
 ylabel('what is this axis tho ???')
 grid on
+
+
