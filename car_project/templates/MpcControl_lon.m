@@ -87,7 +87,6 @@ classdef MpcControl_lon < MpcControlBase
             e = sdpvar(nx, N, 'full');
             x_safe = -10;
             con = [con, delta(:, 1) == x0-x0other-[x_safe;0]];
-
             % xs = V_ref;
             % us = u_ref;
             %con = [con, x(:, 1) == x0];
@@ -101,6 +100,7 @@ classdef MpcControl_lon < MpcControlBase
                 obj = obj + z(:,i)'*P*z(:,i);
             end
             %obj = obj + (delta(:,N))'*P*(delta(:,N));
+
             obj = obj + z(:,N)'*P*z(:,N);
             % Replace this line and set u0 to be the input that you
             % want applied to the system. Note that u0 is applied directly

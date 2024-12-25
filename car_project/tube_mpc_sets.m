@@ -15,7 +15,6 @@ B = [0;
 u_T_s = us(2);
 
 
-
 mpc_lon = MpcControl_lon(sys_lon, Ts, H_lon);
 A = mpc_lon.A;
 B = mpc_lon.B;
