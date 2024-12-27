@@ -77,6 +77,15 @@ U = Polyhedron(M,m);
 X_tightened = X - E;
 U_tightened = U - K*E;
 
+%{
+if X_f.contains[0;0] == false
+    fprintf("fuck pas d'origine \n")
+end
+plot(X_f)
+axis on
+legend("X_f")
+%}
+
 F_tight = X_tightened.A;
 M_tight = U_tightened.A;
 f_tight = X_tightened.b;
