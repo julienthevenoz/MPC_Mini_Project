@@ -1,4 +1,4 @@
-classdef NmpcControl < handle
+classdef NmpcControl_overtake < handle
 
     properties
         % The NMPC problem
@@ -23,13 +23,14 @@ classdef NmpcControl < handle
         % to debug via
         %   nmpc.sol.value(nmpc.X)
         % 
-        X, U
+        p
+        X, U, pL
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
     end
 
     methods
-        function obj = NmpcControl(car, H)
+        function obj = NmpcControl_overtake(car, H)
 
             import casadi.*
 
@@ -52,7 +53,7 @@ classdef NmpcControl < handle
          
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
-            h = 1;
+            h = car.Ts;
             f_discrete  = @(x,u) RK4_car(x,u,h,@car.f);
 
             % Define your problem using the opti object created above
@@ -76,15 +77,12 @@ classdef NmpcControl < handle
             opti.subject_to(obj.U(:,1) == obj.u0);
             opti.subject_to(obj.X(:,1) == obj.x0);
            
-
             for k=1:N % loop over control intervals
 
                 opti.subject_to(obj.X(:,k+1) == f_discrete(obj.X(:,k), obj.U(:,k)));
 
-
-            end
-
-           
+           end
+            
             opti.subject_to(-1 <= obj.U(2,:));  %limit throttle
             opti.subject_to(obj.U(2,:)  <= 1);
             opti.subject_to(-0.5236 <= obj.U(1,:)); %limit steering to 30 degrees 
@@ -93,7 +91,24 @@ classdef NmpcControl < handle
             opti.subject_to(obj.X(2,:)  <= 3.5 );
             opti.subject_to(-0.0873 <= obj.X(3,:));  %car angle theta must be smaller than 5 degrees
             opti.subject_to(obj.X(3,:) <= 0.0873);
-            
+
+            % Define p and pL
+            obj.p = [obj.X(1, :); obj.X(2, :)]; % Car's position
+
+            % Define pL (other car's position)
+            z = (0:N) * h; % Time vector
+            pL1 = obj.x0other(1) + obj.x0other(4) * z; % Other car's x position
+            pL2 = obj.x0other(2) * ones(1, N + 1);     % Other car's y position
+            obj.pL = [pL1; pL2];
+
+            % Constraints for collision avoidance
+            H = [1/100, 0; 
+              0, 1/9];
+    
+            for k = 1:N+1
+              opti.subject_to((obj.p(:, k) - obj.pL(:, k))' * H * (obj.p(:, k) - obj.pL(:, k)) >= 1);
+            end
+
           
             opti.minimize(cost);
 

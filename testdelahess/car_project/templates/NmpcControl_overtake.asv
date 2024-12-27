@@ -1,4 +1,4 @@
-classdef NmpcControl < handle
+classdef NmpcControl_overtake < handle
 
     properties
         % The NMPC problem
@@ -23,13 +23,13 @@ classdef NmpcControl < handle
         % to debug via
         %   nmpc.sol.value(nmpc.X)
         % 
-        X, U
+        X, U, pL
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
     end
 
     methods
-        function obj = NmpcControl(car, H)
+        function obj = NmpcControl_overtake(car, H)
 
             import casadi.*
 
@@ -52,7 +52,7 @@ classdef NmpcControl < handle
          
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
-            h = 1;
+            h = car.Ts;
             f_discrete  = @(x,u) RK4_car(x,u,h,@car.f);
 
             % Define your problem using the opti object created above
@@ -76,15 +76,16 @@ classdef NmpcControl < handle
             opti.subject_to(obj.U(:,1) == obj.u0);
             opti.subject_to(obj.X(:,1) == obj.x0);
            
-
             for k=1:N % loop over control intervals
 
                 opti.subject_to(obj.X(:,k+1) == f_discrete(obj.X(:,k), obj.U(:,k)));
 
+           end
 
-            end
 
-           
+            H = [1/100  0 ;
+                0 1/9 ];
+            
             opti.subject_to(-1 <= obj.U(2,:));  %limit throttle
             opti.subject_to(obj.U(2,:)  <= 1);
             opti.subject_to(-0.5236 <= obj.U(1,:)); %limit steering to 30 degrees 
@@ -93,7 +94,25 @@ classdef NmpcControl < handle
             opti.subject_to(obj.X(2,:)  <= 3.5 );
             opti.subject_to(-0.0873 <= obj.X(3,:));  %car angle theta must be smaller than 5 degrees
             opti.subject_to(obj.X(3,:) <= 0.0873);
+
+            obj.p = opti.variable(2, N+1);   % Variable d'optimisation
+            obj.pL = opti.parameter(2, N+1); % Paramètre (défini avant la résolution)
             
+            obj.p = [obj.X(1,:) ; obj.X(2,:)];
+
+            % pL= [obj.x0other(1) + obj.x0other(4)*h*(0:N-1) ; obj.x0other(2) ]; 
+            
+            obj.z = casadi.MX.sym('z', 1, N+1);  % Vecteur d'indices : [0, 1, ..., N-1]
+
+           % Créez la première ligne en utilisant des opérations symboliques
+            obj.pL = casadi.MX(2, N+1);  % Initialisation de la matrice pL comme MX
+            obj.pL(1, :) = obj.x0other(1) + obj.x0other(4)*h*z;  % Première ligne
+            obj.pL(2, :) = obj.x0other(2);                       % Deuxième ligne
+
+
+
+            opti.subject_to((p-pL)'*H*(p-pL) >= 1 );
+
           
             opti.minimize(cost);
 
