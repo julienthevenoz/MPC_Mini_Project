@@ -4,15 +4,11 @@ clear all;
 Ts = 1/10; % Sample time
 car = Car(Ts);
 [xs, us] = car.steady_state(120 / 3.6); 
-sys = car.linearize(xs, us);
-[sys_lon, sys_lat] = car.decompose(sys);
+
 % Design MPC controller
 H_lon = 15; % Horizon length in seconds
-% Get control input for longitudinal subsystem
 
-mpc_lon = MpcControl_lon(sys_lon, Ts, H_lon);
-mpc_lat = MpcControl_lat(sys_lat, Ts, H_lon);
-mpc = car.merge_lin_controllers(mpc_lon, mpc_lat);
+mpc = NmpcControl(car, H_lon);
 
 params = {};
 params.Tf = 15;
@@ -24,3 +20,39 @@ ref2 = [3 100/3.6]';
 params.myCar.ref = car.ref_step(ref1, ref2, 2);
 result = simulate(params);
 visualization(car, result);
+
+
+% u0 = mpc.get_u(x0, ref2);
+% u = mpc.sol.value(mpc.U);
+% x = mpc.sol.value(mpc.X);
+% 
+% t = tiledlayout(3,2);
+% nexttile
+% plot(x(2,:));
+% ylabel('lane y position')
+% xlabel('time [seconds/10]')
+% title('Initial open-loop MPC computation : State x(2) [y position]')
+% nexttile
+% 
+% plot(x(3,:));
+% ylabel('theta')
+% xlabel('time [seconds/10]')
+% title('Initial open-loop MPC computation : State x(3) [theta]')
+% nexttile
+% 
+% plot(x(4,:));
+% ylabel("Speed V")
+% xlabel('time [seconds/10]')
+% title('Initial open-loop MPC computation state x(4) [Speed]')
+% nexttile
+% 
+% plot(u(1,:));
+% ylabel('steering')
+% xlabel('time [seconds/10]')
+% title('Initial open-loop MPC computation Input u(1) over time')
+% nexttile
+% 
+% plot(u(2,:));
+% ylabel('throttle')
+% xlabel('time [seconds/10]')
+% title('Initial open-loop MPC computation Input u(2) over time')
