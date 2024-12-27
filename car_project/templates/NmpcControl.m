@@ -52,7 +52,7 @@ classdef NmpcControl < handle
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
 
-            h = 0.025;   %h is the sample period of RK4. What should it be ?
+            h = car.Ts;   %h is the sample period of RK4. What should it be ?
             %define discrete time dynamics function (integration : x+ = f(x,u))
             f_discrete  = @(x,u) RK4(x,u,h,@car.f);  %we give it the car.f continuous time dynamics to RK4 to be integrated
 
@@ -66,28 +66,25 @@ classdef NmpcControl < handle
     
             %define the cost to minimize
             opti.minimize(...
-              10*(obj.X(4,:) - obj.ref(2))*(obj.X(4,:) - obj.ref(2))'  + ... % minimize difference between V and V_ref
-              10*(obj.X(2,:) - obj.ref(1))*(obj.X(2,:) - obj.ref(1))' + ... %minimize difference between y and y_ref
-              0.1*obj.U(1,:)*obj.U(1,:)' + ... % Minimize steering
-              10*obj.U(2,:)*obj.U(2,:)' );% Minimize throttle
+              1000*(obj.X(4,:) - obj.ref(2))*(obj.X(4,:) - obj.ref(2))'  + ... % minimize difference between V and V_ref
+              1000*(obj.X(2,:) - obj.ref(1))*(obj.X(2,:) - obj.ref(1))' + ... %minimize difference between y and y_ref
+              1*obj.U(1,:)*obj.U(1,:)' + ... % Minimize steering
+              1*obj.U(2,:)*obj.U(2,:)' );% Minimize throttle
              
             % initial constraints
-            % opti.subject_to( obj.u0 == 0 ); %on doit modifier qqchose là ou bien ??????????
-
             opti.subject_to(obj.X(:,1) == obj.x0);
+
             %time dynamics equality constraints
             for i=1:N
                 opti.subject_to(obj.X(:,i+1) == f_discrete(obj.X(:,i), obj.U(:,i)));
             end
             
             %inequality constraints
-            opti.subject_to(0 <= obj.U(2,:) <= 1);  %limit throttle
-            opti.subject_to(0 <= obj.U(1,:) <= 0.5236); %limit steering to 30 degrees 
+            opti.subject_to(-1 <= obj.U(2,:) <= 1);  %limit throttle
+            opti.subject_to(-0.5236 <= obj.U(1,:) <= 0.5236); %limit steering to 30 degrees 
             opti.subject_to(-0.5 <= obj.X(2,:) <= 3.5 ); % car mustn't go out of the road
-            opti.subject_to(0 <= obj.X(3,:) <= 0.0873);  %car angle theta must be smaller than 5 degrees
+            opti.subject_to(-0.0873 <= obj.X(3,:) <= 0.0873);  %car angle theta must be smaller than 5 degrees
 
-
-            % opti.minimize(cost);
 
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
