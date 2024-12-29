@@ -45,7 +45,7 @@ ref_lat = 3;  %on veut qu'il aille à la ref2 [3 120/3,6]
 
 %%
 
-%{
+
 otherRef = 100 / 3.6;
 params = {};
 params.Tf = 25;
@@ -58,11 +58,11 @@ params.otherCar.x0 = [15 0 0 100/3.6]';
 params.otherCar.u = car.u_const(100/3.6); 
 result = simulate(params); 
 visualization(car, result);
-%}
 
+%{
 otherRef = 100 / 3.6;
 params = {};
-params.Tf = 30;
+params.Tf = 25;
 params.myCar.model = car;
 params.myCar.x0 = [0 0 0 115/3.6]'; 
 params.myCar.u = @mpc.get_u; 
@@ -73,4 +73,4 @@ params.otherCar.u = car.u_fwd_ref();
 params.otherCar.ref = car.ref_robust();
 result = simulate(params); 
 visualization(car, result); 
- 
+ %}
