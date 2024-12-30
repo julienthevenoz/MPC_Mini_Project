@@ -50,7 +50,7 @@ classdef MpcControl_lon < MpcControlBase
             u = sdpvar(nu, N-1, 'full');
 
             A = mpc.A;
-            B= mpc.B;
+            B = mpc.B;
 
             F = [];
             f = [];
@@ -68,18 +68,18 @@ classdef MpcControl_lon < MpcControlBase
             Q  = 10*eye(2);
             R = 10;
 
-            [K, Qf, ~] = dlqr(A, B,Q, R);
+            [K, Qf, ~] = dlqr(A, B, Q, R);
             K = -K;
 
 
             con = [con, x(:, 1) == x0];
 
             for i = 1:N-1
-                con = [ con, x(:, i+1) == A* (x(:, i)) + B*(u(:,i))];
+                con = [ con, x(:, i+1) == xs + A* (x(:, i)-xs) + B*(u(:,i)-us)];
                 con = [con, M*(u(:,i)) <= m];
                 obj = obj + (x(2,i) - V_ref)'*Q(2,2)*(x(2,i) - V_ref) + (u(:,i) - u_ref)'*R*(u(:,i) - u_ref);
             end
-            obj = obj + (x(2,N) - V_ref)'*Q(2,2)*(x(2,N) - V_ref);
+            obj = obj + (x(2,N) - V_ref)'*Qf(2,2)*(x(2,N) - V_ref);
             % Replace this line and set u0 to be the input that you
             % want applied to the system. Note that u0 is applied directly
             % to the nonlinear system. You need to take care of any 
