@@ -44,7 +44,11 @@ classdef MpcControl_lon < MpcControlBase
             
             % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
 
-            load('tube_mpc_data.mat', 'X_tightened', 'U_tightened', 'X_f', 'P');
+            load('tube_mpc_data.mat', 'X_tightened', 'U_tightened', 'X_f', 'P', 'Qf', 'R', 'K_lon');
+            K = K_lon;
+            %Q obtenu avec dlqr
+            %P obtenu avec lyap
+
             %load('tube_mpc_data.mat');
 
             F_tight = X_tightened.A;
@@ -73,11 +77,22 @@ classdef MpcControl_lon < MpcControlBase
             % us = mpc.us;
 
 
-            Q  = 10*eye(2);
-            R = 10;
+            %Q  = 10*eye(2);
+            %R = 10;
+            
+            disp('old K : ');
+            disp(K);
+            disp('old Qf : ');
+            disp(Qf);
+            %Q = 15*eye(2);
 
-            [K, Qf, ~] = dlqr(A, B,Q, R);
-            K = -K;
+            %[K, Qf, ~] = dlqr(A, B,Q, R);
+            %K = -K;
+
+            disp('new K : ');
+            disp(K);
+            disp('new Qf : ');
+            disp(Qf);
 
             us = mpc.us;
 
@@ -93,23 +108,28 @@ classdef MpcControl_lon < MpcControlBase
             for i = 1:N-1
                 %con = [ con, delta(:, i+1) == A* (delta(:, i)) - B*(u(:,i))  ];  
                 con = [ con, z(:, i+1) == A* (z(:, i)) - B*(v(:,i))  ];  
-                con = [ con, e(:, i+1) == (A* - B*K)*e(:, i) ]; %i'm very very unsure of this
+                con = [ con, e(:, i+1) == (A- B*K)*e(:, i) ]; %i'm very very unsure of this
                 con = [con, u(:,i) == K*(delta(:,i)-z(:,i)) + v(:,i)];
+             
                 con = [con, M_tight*(u(:,i)) <= m_tight];
+                con = [con, F_tight*(z(:,i)) <= f_tight];
+                %con = [con, abs(u(:,i)) <= 1];
+
                 %obj = obj + (delta(:,i))'*P*(delta(:,i)) + (u(:,i))'*R*(u(:,i));
-                obj = obj + z(:,i)'*P*z(:,i);
+                obj = obj + z(:,i)'*P*z(:,i) + (v(:,i))'*R*(v(:,i));
             end
             %obj = obj + (delta(:,N))'*P*(delta(:,N));
-
-            obj = obj + z(:,N)'*P*z(:,N);
+            con = [con, F_tight*(z(:,N)) <= f_tight];
+            obj = obj + z(:,N)'*Qf*z(:,N);
             % Replace this line and set u0 to be the input that you
             % want applied to the system. Note that u0 is applied directly
             % to the nonlinear system. You need to take care of any 
             % offsets resulting from the linearization.
             % If you want to use the delta formulation make sure to
             % substract mpc.xs/mpc.us accordingly.
-            con = con + ( u0 == u(:,1) );
-
+            %con = con + ( u0 == u(:,1) );
+            %delta_x0 = x0other-x0-[x_safe;0];
+            con = con + ( u0 == (K * (delta(:,1) - z(:, 1)) +v(:, 1) + us));
             % Pass here YALMIP sdpvars which you want to debug. You can
             % then access them when calling your mpc controller like
             % [u, X, U] = mpc_lon.get_u(x0, ref);
