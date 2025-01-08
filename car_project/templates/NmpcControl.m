@@ -1,3 +1,4 @@
+
 classdef NmpcControl < handle
 
     properties
@@ -23,7 +24,7 @@ classdef NmpcControl < handle
         % to debug via
         %   nmpc.sol.value(nmpc.X)
         % 
-        X, U
+        X, U, pL
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
     end
@@ -52,7 +53,7 @@ classdef NmpcControl < handle
          
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
-            h = 1;
+            h = car.Ts;
             f_discrete  = @(x,u) RK4(x,u,h,@car.f);
 
             % Define your problem using the opti object created above
@@ -65,10 +66,10 @@ classdef NmpcControl < handle
 
              %define the cost to minimize
             cost = ...
-             (obj.X(4,:) - obj.ref(2))*(obj.X(4,:) - obj.ref(2))'  + ... % minimize difference between V and V_ref
-             10*(obj.X(2,:) - obj.ref(1))*(obj.X(2,:) - obj.ref(1))' + ... %minimize difference between y and y_ref
-             0.1*obj.U(1,:)*obj.U(1,:)' + ... % Minimize steering
-             0.1*obj.U(2,:)*obj.U(2,:)' ;% Minimize throttle;
+             1000*(obj.X(4,:) - obj.ref(2))*(obj.X(4,:) - obj.ref(2))'  + ... % minimize difference between V and V_ref
+             1000*(obj.X(2,:) - obj.ref(1))*(obj.X(2,:) - obj.ref(1))' + ... %minimize difference between y and y_ref
+             0.01*obj.U(1,:)*obj.U(1,:)' + ... % Minimize steering
+             obj.U(2,:)*obj.U(2,:)' ;% Minimize throttle;
 
             % change this line accordingly
             %opti.subject_to( obj.u0 == 0 );
@@ -76,11 +77,23 @@ classdef NmpcControl < handle
             opti.subject_to(obj.U(:,1) == obj.u0);
             opti.subject_to(obj.X(:,1) == obj.x0);
 
+            p = [obj.X(1,:) ; obj.X(2,:)];
+            pL = MX.zeros(size(p));
+            %pL = [obj.x0other(1) ; obj.x0other(2)];
+            
             for k=1:N % loop over control intervals
-  
-                 opti.subject_to(obj.X(:,k+1) == f_discrete(obj.X(:,k), obj.U(:,k)));
-     
+                opti.subject_to(obj.X(:,k+1) == f_discrete(obj.X(:,k), obj.U(:,k)));
+               % p = [obj.X(1,k) ; obj.X(2,k)];
+               % pL = pL +[obj.x0other(4)*h ;0];
+               % opti.subject_to( (p-pL)'*H*(p-pL) >= 1 );
+               pL(:,k) = [obj.x0other(1) + obj.x0other(4) * h;  % Update row 1
+                                               obj.x0other(2)];                     % Update row 2
             end
+           
+
+            H = [1/100 , 0 ;
+                0, 1/9];
+
             
             opti.subject_to(-1 <= obj.U(2,:));  %limit throttle
             opti.subject_to(obj.U(2,:)  <= 1);
@@ -90,14 +103,13 @@ classdef NmpcControl < handle
             opti.subject_to(obj.X(2,:)  <= 3.5 );
             opti.subject_to(-0.0873 <= obj.X(3,:));  %car angle theta must be smaller than 5 degrees
             opti.subject_to(obj.X(3,:) <= 0.0873);
-                
-            %inequality constraints
-            % opti.subject_to(0 <= obj.U(2,:)  <= 1);  %limit throttle
-            % opti.subject_to(0 <= obj.U(1,:) <= 0.5236); %limit steering to 30 degrees 
-            % opti.subject_to(-0.5 <= obj.X(2,:) <= 3.5 ); % car mustn't go out of the road
-            % opti.subject_to(0 <= obj.X(3,:) <= 0.0873);  %car angle theta must be smaller than 5 degrees
-            % 
-           
+            
+           %opti.subject_to( ((p-pL)'*H*(p-pL)) >= 1 );
+           for k = 1:N
+                diff = p(:,k) - pL(:,k); % Difference for the k-th time step
+                %opti.subject_to(diff' * H * diff >= 1); % Apply scalar inequality
+           end
+          
             opti.minimize(cost);
 
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
@@ -106,7 +118,8 @@ classdef NmpcControl < handle
             % Store the defined problem to solve in get_u
             obj.opti = opti;
 
-            % Setup solver
+
+% Setup solver
             options = struct;
             options.ipopt.print_level = 0;
             options.print_time = 0;
