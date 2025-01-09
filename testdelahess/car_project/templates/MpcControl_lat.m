@@ -73,18 +73,18 @@ classdef MpcControl_lat < MpcControlBase
                 if isequal(prevXf, Xf)
                     break
                 end
-                disp('youhouuuuu');
                 i = i+1;
 
             end
+            fprintf("terminal invariant set X_f found in %i iterations",i);
             [Ff,ff] = double(Xf);
             
             %plot the invariant set
             figure;
             Xf.plot();
-            xlabel('x1: velocity z');
-            ylabel('x2: z');
-            title('Terminal invariant set for z system ');
+            xlabel('y');
+            ylabel('angle theta');
+            title('Terminal invariant set for lateral system ');
             
 
            

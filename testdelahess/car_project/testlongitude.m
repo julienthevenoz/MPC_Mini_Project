@@ -22,4 +22,42 @@ params.myCar.x0 = x0;
 params.myCar.u = @mpc.get_u;
 params.myCar.ref = car.ref_step(ref1, ref2, 5); % delay reference step by 5s 
 result = simulate(params);
-visualization(car, result);
+
+figure
+plot(result.myCar.X(1,:), 'LineWidth',3);
+ylabel('x position [m]')
+xlabel('time [seconds/10]')
+title('Car x-position over 15 seconds')
+
+
+figure
+plot(result.myCar.X(2,:),'LineWidth',3);
+yline(ref1(1));
+yline(ref2(1));
+ylabel('y position [m]')
+xlabel('time [seconds/10]')
+title('Car y-position over 15 seconds')
+legend("theta", "start point y=0", "end point y=3")
+
+
+
+figure
+plot(result.myCar.X(3,:), 'LineWidth',3);
+ylabel('angle theta [rad]')
+xlabel('time [seconds/10]')
+title('Angle between car and road over 15 seconds')
+
+
+figure
+plot(result.myCar.X(4,:), 'LineWidth',3);
+yline(ref1(2));
+yline(ref2(2));
+ylabel('speed V [m/s]')
+xlabel('time [seconds/10]')
+title('Car speed over 15 seconds')
+legend("V","start point 80 km/h", "end point 120 km/h")
+
+
+
+
+ visualization(car, result);
