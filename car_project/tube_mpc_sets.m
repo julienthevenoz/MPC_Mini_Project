@@ -11,28 +11,27 @@ sys = car.linearize(xs, us);
 sysd = c2d(sys_lon, Ts);
 [Ad,Bd,~,~] = ssdata(sysd);
 
-
-u_T_s = us(2);
-
-% mpc_lon = MpcControl_lon(sys_lon, Ts, H_lon);
-% A = mpc_lon.A;
-% B = mpc_lon.B;
-
-% Define us - 0.5 < u_T < us + 0.5
+u_s = us(2);
 
 
-%find the control law K that stabilizes the dynamics (i.e eigs(A + B*K) < 1) -> just use LQR controller ?
-Q = 16; %same values as usual ??
+%% LQR Controller Design
+% This creates a feedback controller using the LQR method. The Q and R 
+% values balance how much we care about state errors versus input effort. 
+% K is the controller gain, and A_cl is the new closed-loop system.
+
+Q = 16;
 R = 1;
 [K, Qf, ~] = dlqr(Ad, -Bd, Q, R);
 K= -K;
+A_cl = Ad - (Bd * K); 
 
-A_cl = Ad - (Bd * K); %closed loop controlled system dynamics
-fprintf("eigenvalues of our control system should be stable. Are they?");
-fprintf("%g", eigs(A_cl));
+%% Robust Invariant Set
+% This calculates a robust invariant set E, which represents the system's 
+% safe operating bounds under feedback. Iterations stop once A_cl^i 
+% (system dynamics raised to the power i) becomes negligible.
 
 T = [1; -1];
-t = [u_T_s + 0.5; - u_T_s + 0.5];
+t = [u_s + 0.5; - u_s + 0.5];
 
 W = Polyhedron(T,t) ;
 W_lifted = Bd * W;
@@ -40,9 +39,9 @@ W_lifted = Bd * W;
 E = Polyhedron.emptySet(2);
 i = 1;
 while true
-    E_next = E + A_cl ^i * W_lifted; % if E and W are Polyhedron, the operator + acts as Minkowski sum and not normal addition in MPT
+    E_next = E + A_cl ^i * W_lifted; 
     E_next = E_next.minHRep;
-    if norm(A_cl^i) < 1e-2   %check if diff is sufficiently small to terminate
+    if norm(A_cl^i) < 1e-2   
         fprintf("minimum robust invariant set passed vibe check after %i iterations", i)
             break;
     end
@@ -54,21 +53,28 @@ end
     
 P = dlyap(A_cl',Q + K'*R*K);
 
+%% Tightened Constraints
+
 x_safe = 10;
 F_x = [-1 0];
 f_x = -6 + x_safe ;
-X = Polyhedron(F_x, f_x);
-X_tightened = X - E;
+X = Polyhedron(F_x, f_x);   % State constraints
+X_tightened = X - E;        % Tightened state constraints
 
 F_u = [1; -1];
 f_u = [1; 1];
-U = Polyhedron(F_u, f_u);
-U_tightened = U - K * E;
+U = Polyhedron(F_u, f_u);   % Input constraints
+U_tightened = U - K * E;    % Tightened input constraints
 
 F_tight = X_tightened.A;
 M_tight = U_tightened.A;
 f_tight = X_tightened.b;
 m_tight = U_tightened.b;
+
+%% Terminal Set
+% This computes the terminal set (Xf), ensuring that the system remains 
+% within safe bounds at the end of its trajectory. Iterations continue 
+% until the terminal set converges.
 
 X_f = Polyhedron([F_tight;M_tight*K],[f_tight;m_tight]);
 
@@ -87,30 +93,22 @@ while 1
     i = i + 1;
 end
 
+%% PLOTS : 
 
+% Plot for X_f
 figure
 plot(X_f)
-legend('Xf')
-xlabel('??')
-ylabel('???')
+legend('Xf : Terminal Set')
+xlabel('Delta X')
+ylabel('Delta V')
 grid on
 
-
-
+%Plot for E
 figure
-plot([E W_lifted ])
-legend('Disturbance set W_lifted', 'min robust invariant set E')
-xlabel('throttle u_T ??? not sure actually ')
-ylabel('what is this axis tho ???')
+plot(E)
+legend('E : Minimum robust invariant set')
+xlabel('Delta X')
+ylabel('Delta V')
 grid on
 
-
-
-figure
-plot([U_tightened])
-legend('U_T')
-xlabel('throttle u_T ??? not sure actually ')
-ylabel('what is this axis tho ???')
-grid on
-
-save('tube_mpc_data.mat', 'X_tightened', 'U_tightened', 'X_f', 'R', 'P', 'Qf', 'K');
+save('tube_mpc_data.mat', 'X_tightened', 'U_tightened', 'X_f', 'R', 'P', 'Qf', 'K', 'x_safe');
