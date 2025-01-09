@@ -56,19 +56,16 @@ classdef MpcControl_lat < MpcControlBase
             M = [1; -1];
             m = [0.5236 ; 0.5236];
 
-            xs = mpc.xs;
-
-            us = mpc.us;
-
-
             Q  = 10*eye(2);
             R = 1;
 
             [K, Qf, ~] = dlqr(A, B,Q, R);
             K = -K;
-               % Compute maximal invariant set
+
             Xf = polytope([F;M*K],[f;m]);
-            Acl = [A+B*K];
+
+            Acl = A+B*K;
+
             while 1
                 prevXf = Xf;
                 [T,t] = double(Xf);
@@ -82,11 +79,8 @@ classdef MpcControl_lat < MpcControlBase
             [Ff,ff] = double(Xf);
 
             x(:,1) = x0;
-            u(:, 1) = u0;
-            con = [con, x(:, 2) == A* (x(:, 1)) + B*(u(:,1))];
-            con = [con, M*u(:,1) <= m];
-            %obj = u(:,1)'*R*u(:,1);
-            for i = 2:N-1
+
+            for i = 1:N-1
                 con = [con, x(:, i+1) == A* (x(:, i)) + B*(u(:,i))];
                 con = [con, M*(u(:,i)) <= m];
                 con = [con, F*x(:,i) <= f];
@@ -101,8 +95,7 @@ classdef MpcControl_lat < MpcControlBase
             % offsets resulting from the linearization.
             % If you want to use the delta formulation make sure to
             % substract mpc.xs/mpc.us accordingly.
-            %con = con + ( u0 == 0 );
-            %con = con + ( u0 == u(:,1) );
+            con = con + ( u0 == u(:,1) );
 
 
             % Pass here YALMIP sdpvars which you want to debug. You can

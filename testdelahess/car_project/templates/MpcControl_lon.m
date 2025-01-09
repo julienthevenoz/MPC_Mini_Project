@@ -53,31 +53,25 @@ classdef MpcControl_lon < MpcControlBase
             B= mpc.B;
             B_d_hat = B(2);
 
-            F = [];
-            f = [];
+            F = [];     %no state constraint
+            f = [];     %no state constraint
 
             M = [1; -1];
             m = [1; 1];
-            % 
-            % xs = mpc.xs;
-            % us = mpc.us;
-
 
             Q  = 10*eye(2);
             R = 10;
 
-            [K, Qf, ~] = dlqr(A, B,Q, R);
-            K = -K;
+            [~, Qf, ~] = dlqr(A, B,Q, R);
 
-            % xs = V_ref;
-            % us = u_ref;
             con = [con, x(:, 1) == x0];
             for i = 1:N-1
-                con = [ con, x(:, i+1) == A* (x(:, i)) + B*(u(:,i)) + B_d_hat*d_est ];   %i'm very very unsure of this
+                con = [con, x(:, i+1) == A* (x(:, i)) + B*(u(:,i)) + B_d_hat*d_est ];   
                 con = [con, M*(u(:,i)) <= m];
                 obj = obj + (x(2,i) - V_ref)'*Q(2,2)*(x(2,i) - V_ref) + (u(:,i) - u_ref)'*R*(u(:,i) - u_ref);
             end
             obj = obj + (x(2,N) - V_ref)'*Qf(2,2)*(x(2,N) - V_ref);
+
             % Replace this line and set u0 to be the input that you
             % want applied to the system. Note that u0 is applied directly
             % to the nonlinear system. You need to take care of any 
@@ -90,8 +84,6 @@ classdef MpcControl_lon < MpcControlBase
             % then access them when calling your mpc controller like
             % [u, X, U] = mpc_lon.get_u(x0, ref);
             % with debugVars = {X_var, U_var};
-            debug_u = u;
-            debug_x = x;
             debugVars = {};
 
 
@@ -126,9 +118,9 @@ classdef MpcControl_lon < MpcControlBase
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
-            x_ref = ref; %just for clarity
-            Vs_ref = x_ref;  %we have a perfect sensor so measurement = state
-            us_ref = (x_ref - B*d_est - xs -A*(x_ref - xs))/B + us;  %assuming Bd_hat mentionned in part 4 is B_discretized(2). So it' the same as B in this case
+            x_ref = ref; 
+            Vs_ref = x_ref;  
+            us_ref = (x_ref - B*d_est - xs -A*(x_ref - xs))/B + us;  
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         end
