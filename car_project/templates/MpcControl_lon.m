@@ -79,13 +79,9 @@ classdef MpcControl_lon < MpcControlBase
 
             %Q  = 10*eye(2);
             %R = 10;
-            
-            disp('old K : ');
-            disp(K);
-            disp('old Qf : ');
-            disp(Qf);
-            %Q = 15*eye(2);
 
+            %Q = 15*eye(2);
+            %R = 1;
             %[K, Qf, ~] = dlqr(A, B,Q, R);
             %K = -K;
 

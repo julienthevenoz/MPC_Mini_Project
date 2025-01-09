@@ -19,7 +19,7 @@ mpc_lon = MpcControl_lon(sys_lon, Ts, H_lon);
 A = mpc_lon.A;
 B = mpc_lon.B;
 
-%define cstrsts us - 0.5 < u_T < us + 0.5
+%define constraints us - 0.5 < u_T < us + 0.5
 T = [1; -1];
 t = [u_T_s + 0.5; -u_T_s + 0.5];
 %t = [0.5; 0.5];
@@ -29,13 +29,14 @@ W = Polyhedron(T,t) ; % Define disturbance set
 W_lifted = B*W;
 
 %find the control law K that stabilizes the dynamics (i.e eigs(A + B*K) < 1) -> just use LQR controller ?
-Q = 15*eye(2); %same values as usual ??
+Q = 20*eye(2); %same values as usual ??
 R = 1;
 [K, Qf, ~] = dlqr(A, B,Q, R);
 K_lon= -K;
 
 %poles = [0.7, 0.8];
 %K = -place(A, -B, poles);
+%K = [5 7];
 A_cl = A-B*K; %closed loop controlled system dynamics
 fprintf("eigenvalues of our control system should be stable. Are they?");
 fprintf("%g", eigs(A_cl));
@@ -95,17 +96,17 @@ X_f = Polyhedron([F_tight;M_tight*K],[f_tight;m_tight]);
 
 
 %%%%% SA VERSION 
-x_safe = 10;
+x_safe = -10;
 F_x = [-1 0];
 f_x = -x_safe ;
-P_x = Polyhedron(F_x, f_x);
-X_tightened = P_x - E;
+X = Polyhedron(F_x, f_x);
+X_tightened = X - E;
 
 F_u = [1; -1];
 %f_u = [1 - u_T_s; 1 + u_T_s];
 f_u = [1; 1];
-P_u = Polyhedron(F_u, f_u);
-U_tightened = P_u - K * E;
+U = Polyhedron(F_u, f_u);
+U_tightened = U - K * E;
 
 F_tight = X_tightened.A;
 M_tight = U_tightened.A;
@@ -115,17 +116,6 @@ m_tight = U_tightened.b;
 P = dlyap(A_cl',Q + K'*R*K);
 
 X_f = Polyhedron([F_tight;M_tight*K],[f_tight;m_tight]);
-
-%{
-if X_f.contains[0;0] == false
-    fprintf("fuck pas d'origine \n")
-end
-plot(X_f)
-axis on
-legend("X_f")
-%}
-
-
 
 
 i = 1;
@@ -142,49 +132,22 @@ while 1
     fprintf("iteration %i to get our Terminal set\n",i);
     i = i + 1;
 end
-%{
-j=1;
-
-while j < 10
-    fprintf("X_f calculation iteration %i \n",j);
-    prevXf = X_f;
-    %[Fx,fx] = double(X_f);
-    Fx = X_f.A;
-    fx = X_f.b;
-    preXf = Polyhedron(Fx*A_cl,fx);
-    X_f = intersect(X_f, preXf);
-    X_f = minHRep(X_f);
-    if isequal(prevXf, X_f)
-        break
-    end
-    j=j+1;
-end
-
-%}
 
 
 figure
-plot(X_f)
-legend('Xf')
-xlabel('??')
-ylabel('???')
+plot([X_f])
+legend('Xf : Terminal Set')
+xlabel('Delta X')
+ylabel('Delta V')
 grid on
 
 
 figure
-plot([E W_lifted ])
-legend('Disturbance set W_lifted', 'min robust invariant set E')
-xlabel('throttle u_T ??? not sure actually ')
-ylabel('what is this axis tho ???')
+plot([E])
+legend('E : Minimum robust invariant set')
+xlabel('Delta X')
+ylabel('Delta V')
 grid on
 
-
-
-figure
-plot([U_tightened ])
-legend('U_T')
-xlabel('throttle u_T ??? not sure actually ')
-ylabel('what is this axis tho ???')
-grid on
 
 save('tube_mpc_data.mat', 'X_tightened', 'U_tightened', 'X_f', 'P', 'Qf', 'R', 'K_lon');
