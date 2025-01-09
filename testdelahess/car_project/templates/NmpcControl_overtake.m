@@ -58,21 +58,17 @@ classdef NmpcControl_overtake < handle
 
             % Define your problem using the opti object created above
 
-             %define decision variables
+            %define decision variables
             obj.X = opti.variable(nx,N+1); % state trajectory variables
             obj.U = opti.variable(nu,N);   % control trajectory (throttle, brake)
-            %obj.u0 = obj.U(:,1);
             
 
-             %define the cost to minimize
+            %define the cost to minimize
             cost = ...
-             1000*(obj.X(4,:) - obj.ref(2))*(obj.X(4,:) - obj.ref(2))'  + ... % minimize difference between V and V_ref
-             1000*(obj.X(2,:) - obj.ref(1))*(obj.X(2,:) - obj.ref(1))' + ... %minimize difference between y and y_ref
-             0.01*obj.U(1,:)*obj.U(1,:)' + ... % Minimize steering
-             obj.U(2,:)*obj.U(2,:)' ;% Minimize throttle;
-
-            % change this line accordingly
-            %opti.subject_to( obj.u0 == 0 );
+             1000*(obj.X(4,:) - obj.ref(2))*(obj.X(4,:) - obj.ref(2))'  + ... % Minimize difference between V and V_ref
+             1000*(obj.X(2,:) - obj.ref(1))*(obj.X(2,:) - obj.ref(1))' + ...  % Minimize difference between y and y_ref
+             0.1*obj.U(1,:)*obj.U(1,:)' + ...                                % Minimize steering
+             obj.U(2,:)*obj.U(2,:)' ;                                         % Minimize throttle
 
             opti.subject_to(obj.U(:,1) == obj.u0);
             opti.subject_to(obj.X(:,1) == obj.x0);
@@ -83,32 +79,31 @@ classdef NmpcControl_overtake < handle
 
            end
             
-            opti.subject_to(-1 <= obj.U(2,:));  %limit throttle
+            opti.subject_to(-1 <= obj.U(2,:));       % Limit throttle
             opti.subject_to(obj.U(2,:)  <= 1);
-            opti.subject_to(-0.5236 <= obj.U(1,:)); %limit steering to 30 degrees 
+            opti.subject_to(-0.5236 <= obj.U(1,:));    % Limit steering to 30 degrees 
             opti.subject_to(obj.U(1,:) <= 0.5236);
-            opti.subject_to(-0.5 <= obj.X(2,:)); % car mustn't go out of the road
+            opti.subject_to(-0.5 <= obj.X(2,:));       % Limit to stay on the rigth latitude
             opti.subject_to(obj.X(2,:)  <= 3.5 );
-            opti.subject_to(-0.0873 <= obj.X(3,:));  %car angle theta must be smaller than 5 degrees
+            opti.subject_to(-0.0873 <= obj.X(3,:));    % Limit car angle theta smaller than 5 degrees
             opti.subject_to(obj.X(3,:) <= 0.0873);
 
-            % Define p and pL
-            obj.p = [obj.X(1, :); obj.X(2, :)]; % Car's position
+            % Define p (ego's position)
+            obj.p = [obj.X(1, :); obj.X(2, :)];        % Ego's position
 
             % Define pL (other car's position)
-            z = (0:N) * h; % Time vector
+            z = (0:N) * h;                             % Time vector
             pL1 = obj.x0other(1) + obj.x0other(4) * z; % Other car's x position
             pL2 = obj.x0other(2) * ones(1, N + 1);     % Other car's y position
             obj.pL = [pL1; pL2];
 
             % Constraints for collision avoidance
             H = [1/100, 0; 
-              0, 1/9];
+                  0, 1/9];
     
             for k = 1:N+1
-              opti.subject_to((obj.p(:, k) - obj.pL(:, k))' * H * (obj.p(:, k) - obj.pL(:, k)) >= 1);
+              opti.subject_to((obj.p(:, k) - obj.pL(:, k))' * H * (obj.p(:, k) - obj.pL(:, k)) >= 1); % Ellipsoidal constraint
             end
-
           
             opti.minimize(cost);
 

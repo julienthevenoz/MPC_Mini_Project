@@ -1,32 +1,24 @@
 close all;
 clear all;
 
+%% System initialisation
+
 Ts = 1/10; % Sample time
 car = Car(Ts);
 [xs, us] = car.steady_state(120 / 3.6); 
-
-H = 15;
+H = 15; % Horizon length in seconds
 
 mpc = NmpcControl_overtake(car, H);
 
-% pL = mpc.sol.value(mpc.pL);
-% 
-% figure
-% plot(pL(1,:));
-% ylabel('lane x position')
-% xlabel('time [seconds/10]')
-% title('Initial open-loop MPC computation : State x(2) [y position]')
-% 
-% figure
-% plot(pL(2,:));
-% ylabel('lane y position')
-% xlabel('time [seconds/10]')
-% title('Initial open-loop MPC computation : State x(2) [y position]')
+%% Control input
 
 x0_ego = [0 0 0 80/3.6]';
 x0_other = [20 0 0 80/3.6]';
 ref1 = [0 80/3.6]';
 ref2 = [0 100/3.6]';
+
+%% Simulation
+
 params = {};
 params.Tf = 15;
 params.myCar.model = car;

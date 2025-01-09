@@ -1,3 +1,4 @@
+%% Code from Serie 7 of the MPC course
 function [x_next] = RK4(X,U,h,f)
 
     % Inputs : 
@@ -17,4 +18,3 @@ function [x_next] = RK4(X,U,h,f)
     
     x_next = X + h*((k1/6)+(k2/3)+(k3/3)+(k4/6));
 end
-%MODIFIER POUR LE PLAGIAT OH NON PAS LE PLAGIAT
