@@ -43,13 +43,8 @@ classdef MpcControl_lon < MpcControlBase
             %       in mpc.xs and mpc.us.
             
             % SET THE PROBLEM CONSTRAINTS con AND THE OBJECTIVE obj HERE
+            load('tube_mpc_data.mat', 'X_tightened', 'U_tightened', 'X_f', 'R', 'P', 'Qf', 'K');
 
-            load('tube_mpc_data.mat', 'X_tightened', 'U_tightened', 'X_f', 'P', 'Qf', 'R', 'K_lon');
-            K = K_lon;
-            %Q obtenu avec dlqr
-            %P obtenu avec lyap
-
-            %load('tube_mpc_data.mat');
 
             F_tight = X_tightened.A;
             M_tight = U_tightened.A;
@@ -59,83 +54,35 @@ classdef MpcControl_lon < MpcControlBase
             obj = 0;
             con = [];
             
-            x = sdpvar(nx, N, 'full');
             u = sdpvar(nu, N-1, 'full');
 
             A = mpc.A;
             B = mpc.B;
-            B_d_hat = B(2);
-
-
-            F = [];
-            f = [];
-
-            M = [1; -1];
-            m = [1; 1];
-            % 
-            % xs = mpc.xs;
-            % us = mpc.us;
-
-
-            %Q  = 10*eye(2);
-            %R = 10;
-            
-            disp('old K : ');
-            disp(K);
-            disp('old Qf : ');
-            disp(Qf);
-            %Q = 15*eye(2);
-
-            %[K, Qf, ~] = dlqr(A, B,Q, R);
-            %K = -K;
-
-            disp('new K : ');
-            disp(K);
-            disp('new Qf : ');
-            disp(Qf);
-
-            us = mpc.us;
 
             delta = sdpvar(nx, N, 'full');
             z = sdpvar(nx, N, 'full');
             v = sdpvar(nu, N-1, 'full');
             e = sdpvar(nx, N, 'full');
-            x_safe = -10;
-            con = [con, delta(:, 1) == x0-x0other-[x_safe;0]];
-            % xs = V_ref;
-            % us = u_ref;
-            %con = [con, x(:, 1) == x0];
-            for i = 1:N-1
-                %con = [ con, delta(:, i+1) == A* (delta(:, i)) - B*(u(:,i))  ];  
-                con = [ con, z(:, i+1) == A* (z(:, i)) - B*(v(:,i))  ];  
-                con = [ con, e(:, i+1) == (A- B*K)*e(:, i) ]; %i'm very very unsure of this
-                con = [con, u(:,i) == K*(delta(:,i)-z(:,i)) + v(:,i)];
-             
-                con = [con, M_tight*(u(:,i)) <= m_tight];
-                con = [con, F_tight*(z(:,i)) <= f_tight];
-                %con = [con, abs(u(:,i)) <= 1];
+            x_safe = 10;
 
-                %obj = obj + (delta(:,i))'*P*(delta(:,i)) + (u(:,i))'*R*(u(:,i));
+            con = [con, delta(:, 1) == x0other - x0 -  [x_safe ; 0]];
+
+            con = [con, u(:,1) == u0];
+            con = [con, v(:,1) == u0]; 
+            for i = 1:N-1
+                con = [con, z(:, i+1) == A* (z(:, i)) - B*(v(:,i)) ];  
+                con = [con, e(:, i+1) == (A- B*K)*e(:, i) ]; %i'm very very unsure of this
+                con = [con, u(:,i) == K*(delta(:,i)-z(:,1)) + v(:,1)];
+             
+                con = [con, M_tight*(v(:,i)) <= m_tight];
+                con = [con, F_tight*(z(:,i)) <= f_tight];
+                con = [con, abs(u(:,i)) <= 1];
+
                 obj = obj + z(:,i)'*P*z(:,i) + (v(:,i))'*R*(v(:,i));
             end
-            %obj = obj + (delta(:,N))'*P*(delta(:,N));
-            con = [con, F_tight*(z(:,N)) <= f_tight];
+            con = [con, X_f.A*(z(:,N)) <= X_f.b];
             obj = obj + z(:,N)'*Qf*z(:,N);
-            % Replace this line and set u0 to be the input that you
-            % want applied to the system. Note that u0 is applied directly
-            % to the nonlinear system. You need to take care of any 
-            % offsets resulting from the linearization.
-            % If you want to use the delta formulation make sure to
-            % substract mpc.xs/mpc.us accordingly.
-            %con = con + ( u0 == u(:,1) );
-            %delta_x0 = x0other-x0-[x_safe;0];
-            con = con + ( u0 == (K * (delta(:,1) - z(:, 1)) +v(:, 1) + us));
-            % Pass here YALMIP sdpvars which you want to debug. You can
-            % then access them when calling your mpc controller like
-            % [u, X, U] = mpc_lon.get_u(x0, ref);
-            % with debugVars = {X_var, U_var};
-            debug_u = u;
-            debug_x = x;
+
             debugVars = {};
 
 
@@ -170,9 +117,9 @@ classdef MpcControl_lon < MpcControlBase
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
-            x_ref = ref; %just for clarity
-            Vs_ref = x_ref;  %we have a perfect sensor so measurement = state
-            us_ref = (x_ref - B*d_est - xs -A*(x_ref - xs))/B + us;  %assuming Bd_hat mentionned in part 4 is B_discretized(2). So it' the same as B in this case
+            x_ref = ref;    % For clarity
+            Vs_ref = x_ref;  % We have a perfect sensor so measurement = state
+            us_ref = (x_ref - B*d_est - xs -A*(x_ref - xs))/B + us;  
             % YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE YOUR CODE HERE
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         end
